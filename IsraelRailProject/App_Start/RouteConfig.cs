@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Web;
-using System.Web.Mvc;
+﻿using System.Web.Mvc;
 using System.Web.Routing;
 
 namespace IsraelRailProject
@@ -13,10 +9,25 @@ namespace IsraelRailProject
         {
             routes.IgnoreRoute("{resource}.axd/{*pathInfo}");
 
+            // alias: /WorkForm/Index -> UiController.WorkForm  (לטובת סימניות ישנות)
+            routes.MapRoute(
+                name: "WorkFormIndexAlias",
+                url: "WorkForm/Index",
+                defaults: new { controller = "Ui", action = "WorkForm" }
+            );
+
+            // קיצור נוח: /workform
+            routes.MapRoute(
+                name: "WorkForm",
+                url: "workform",
+                defaults: new { controller = "Ui", action = "WorkForm" }
+            );
+
+            // ברירת מחדל: "/" וכל כתובת כללית
             routes.MapRoute(
                 name: "Default",
                 url: "{controller}/{action}/{id}",
-                defaults: new { controller = "Home", action = "Index", id = UrlParameter.Optional }
+                defaults: new { controller = "Ui", action = "WorkForm", id = UrlParameter.Optional }
             );
         }
     }

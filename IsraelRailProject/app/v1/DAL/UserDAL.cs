@@ -6,6 +6,7 @@ namespace IsraelRailProject.app.v1.DAL
 {
     public static class UserDAL
     {
+        // מחזיר את כל העובדים לבחירה ב-UI
         public static List<EmployeeDto> GetEmployees()
         {
             var list = new List<EmployeeDto>();
@@ -30,6 +31,30 @@ namespace IsraelRailProject.app.v1.DAL
                 }
             }
             return list;
+        }
+
+        // האם משתמש כלשהו קיים (לבדוק ManagerId)
+        public static bool UserExists(int userId)
+        {
+            using (var conn = Db.GetConnection())
+            using (var cmd = new SqlCommand("SELECT COUNT(1) FROM Users WHERE Id = @id", conn))
+            {
+                cmd.Parameters.AddWithValue("@id", userId);
+                conn.Open();
+                return (int)cmd.ExecuteScalar() > 0;
+            }
+        }
+
+        // האם המזהה הוא עובד (Role = Employee)
+        public static bool IsEmployeeId(int userId)
+        {
+            using (var conn = Db.GetConnection())
+            using (var cmd = new SqlCommand("SELECT COUNT(1) FROM Users WHERE Id = @id AND Role = N'Employee'", conn))
+            {
+                cmd.Parameters.AddWithValue("@id", userId);
+                conn.Open();
+                return (int)cmd.ExecuteScalar() > 0;
+            }
         }
     }
 }

@@ -106,6 +106,74 @@
     <Content Include="App_Data\IsraelRailDB_log.ldf">
       <DependentUpon>IsraelRailDB.mdf</DependentUpon>
     </Content>
+    <Content Include="Content\template\assets\avatars\face-1.jpg" />
+    <Content Include="Content\template\assets\avatars\face-2.jpg" />
+    <Content Include="Content\template\assets\avatars\face-3.jpg" />
+    <Content Include="Content\template\assets\avatars\face-4.jpg" />
+    <Content Include="Content\template\assets\avatars\face-5.jpg" />
+    <Content Include="Content\template\assets\avatars\face-6.jpg" />
+    <Content Include="Content\template\assets\avatars\face-7.jpg" />
+    <Content Include="Content\template\assets\avatars\face-8.jpg" />
+    <Content Include="Content\template\assets\images\logo.svg" />
+    <Content Include="Content\template\assets\images\qrcode.svg" />
+    <Content Include="Content\template\assets\products\p1.jpg" />
+    <Content Include="Content\template\assets\products\p2.jpg" />
+    <Content Include="Content\template\assets\products\p3.jpg" />
+    <Content Include="Content\template\assets\products\p4.jpg" />
+    <Content Include="Content\template\css\apexcharts.css" />
+    <Content Include="Content\template\css\app-dark.css" />
+    <Content Include="Content\template\css\app-light.css" />
+    <Content Include="Content\template\css\app-rtl.css" />
+    <Content Include="Content\template\css\bootstrap-datepicker.css" />
+    <Content Include="Content\template\css\dataTables.bootstrap4.css" />
+    <Content Include="Content\template\css\daterangepicker.css" />
+    <Content Include="Content\template\css\dropzone.css" />
+    <Content Include="Content\template\css\dropzone.min.css" />
+    <Content Include="Content\template\css\feather.css" />
+    <Content Include="Content\template\css\fullcalendar.css" />
+    <Content Include="Content\template\css\jquery.steps.css" />
+    <Content Include="Content\template\css\jquery.timepicker.css" />
+    <Content Include="Content\template\css\perfect-scrollbar.css" />
+    <Content Include="Content\template\css\quill.snow.css" />
+    <Content Include="Content\template\css\select2-bootstrap4.css" />
+    <Content Include="Content\template\css\select2.css" />
+    <Content Include="Content\template\css\simplebar.css" />
+    <Content Include="Content\template\css\uppy.min.css" />
+    <Content Include="Content\template\fonts\feather.svg" />
+    <Content Include="Content\template\js\apexcharts.custom.js" />
+    <Content Include="Content\template\js\apexcharts.min.js" />
+    <Content Include="Content\template\js\apps.js" />
+    <Content Include="Content\template\js\bootstrap-datepicker.min.js" />
+    <Content Include="Content\template\js\bootstrap.min.js" />
+    <Content Include="Content\template\js\Chart.min.js" />
+    <Content Include="Content\template\js\config.js" />
+    <Content Include="Content\template\js\d3.min.js" />
+    <Content Include="Content\template\js\datamaps-zoomto.js" />
+    <Content Include="Content\template\js\datamaps.all.min.js" />
+    <Content Include="Content\template\js\datamaps.custom.js" />
+    <Content Include="Content\template\js\dataTables.bootstrap4.min.js" />
+    <Content Include="Content\template\js\daterangepicker.js" />
+    <Content Include="Content\template\js\dropzone.min.js" />
+    <Content Include="Content\template\js\fullcalendar.custom.js" />
+    <Content Include="Content\template\js\fullcalendar.js" />
+    <Content Include="Content\template\js\gauge.min.js" />
+    <Content Include="Content\template\js\jquery.dataTables.min.js" />
+    <Content Include="Content\template\js\jquery.mask.min.js" />
+    <Content Include="Content\template\js\jquery.min.js" />
+    <Content Include="Content\template\js\jquery.sparkline.min.js" />
+    <Content Include="Content\template\js\jquery.steps.min.js" />
+    <Content Include="Content\template\js\jquery.stickOnScroll.js" />
+    <Content Include="Content\template\js\jquery.timepicker.js" />
+    <Content Include="Content\template\js\jquery.validate.min.js" />
+    <Content Include="Content\template\js\moment.min.js" />
+    <Content Include="Content\template\js\perfect-scrollbar.min.js" />
+    <Content Include="Content\template\js\popper.min.js" />
+    <Content Include="Content\template\js\quill.min.js" />
+    <Content Include="Content\template\js\select2.min.js" />
+    <Content Include="Content\template\js\simplebar.min.js" />
+    <Content Include="Content\template\js\tinycolor-min.js" />
+    <Content Include="Content\template\js\topojson.min.js" />
+    <Content Include="Content\template\js\uppy.min.js" />
     <Content Include="Global.asax" />
     <Content Include="Web.config" />
   </ItemGroup>
@@ -114,6 +182,7 @@
     <Compile Include="app\v1\controllers\HealthController.cs" />
     <Compile Include="app\v1\controllers\RisksController.cs" />
     <Compile Include="app\v1\controllers\SignatureController.cs" />
+    <Compile Include="app\v1\controllers\UiController.cs" />
     <Compile Include="app\v1\controllers\WorkFormController.cs" />
     <Compile Include="app\v1\DAL\Db.cs" />
     <Compile Include="app\v1\DAL\RiskItemDAL.cs" />
@@ -138,7 +207,16 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Views\web.config" />
+    <Content Include="Content\template\fonts\feather.eot" />
+    <Content Include="Content\template\fonts\feather.ttf" />
+    <Content Include="Content\template\fonts\feather.woff" />
     <None Include="packages.config" />
+    <Content Include="Views\Shared\_Layout.cshtml" />
+    <Content Include="Views\_ViewStart.cshtml" />
+    <Content Include="Views\WorkForm\Index.cshtml" />
+    <Content Include="Views\Employees\Index.cshtml" />
+    <Content Include="Views\History\Index.cshtml" />
+    <Content Include="Views\Risks\Index.cshtml" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>
@@ -152,7 +230,7 @@
     <Folder Include="app\v1\views\" />
     <Folder Include="Controllers\" />
     <Folder Include="Models\" />
-    <Folder Include="Views\WorkForm\" />
+    <Folder Include="NewFolder1\" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

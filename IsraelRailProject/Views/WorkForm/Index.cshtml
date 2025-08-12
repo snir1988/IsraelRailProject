@@ -1,0 +1,347 @@
+﻿@{
+    ViewBag.Title = "טופס עבודה חדש";
+}
+
+<!-- סגנון מקומי לדף -->
+<style>
+    .form-section {
+        max-width: 1100px;
+        margin-inline: auto;
+    }
+
+        .form-section label {
+            font-weight: 600;
+        }
+
+        .form-section .hint {
+            font-size: .85rem;
+            color: #6b7280;
+        }
+
+    .card {
+        overflow: visible;
+    }
+    /* שלא ייחתך */
+
+    /* רשימת עובדים (צ'קבוקסים) */
+    .emp-list {
+        max-height: 280px;
+        overflow: auto;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+    }
+
+        .emp-list .list-group-item {
+            border: 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+            .emp-list .list-group-item:last-child {
+                border-bottom: 0;
+            }
+</style>
+
+<div class="card form-section">
+    <div class="card-header">טופס עבודה – פתיחת משמרת/מטלה</div>
+    <div class="card-body">
+        <form id="workForm" class="row g-4">
+
+            <!-- מזהה מנהל (זמני) -->
+            <div class="col-md-3">
+                <label class="form-label">מזהה מנהל (ManagerId)</label>
+                <input type="number" class="form-control" id="ManagerId" value="1" />
+                <div class="hint">זמני – בהמשך ניקח מזהות המשתמש המחובר</div>
+            </div>
+
+            <!-- אתר עבודה -->
+            <div class="col-md-9">
+                <label class="form-label">אתר עבודה (Site)</label>
+                <input type="text" class="form-control" id="Site" placeholder="לדוגמה: אשדוד מזרח / ק&quot;מ 43" />
+            </div>
+
+            <!-- תאריך ושעה -->
+            <div class="col-md-3">
+                <label class="form-label">תאריך</label>
+                <input type="date" class="form-control" id="WorkDate" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">שעה</label>
+                <input type="time" class="form-control" id="WorkTime" />
+            </div>
+
+            <!-- סוג עבודה -->
+            <div class="col-md-6">
+                <label class="form-label">סוג עבודה (WorkType)</label>
+                <select class="form-select" id="WorkType">
+                    <option value="">בחר סוג</option>
+                    <option value="תחזוקת מסילה">תחזוקת מסילה</option>
+                    <option value="חשמול">חשמול</option>
+                    <option value="איתות ותקשורת">איתות ותקשורת</option>
+                    <option value="עבודות עפר">עבודות עפר</option>
+                </select>
+            </div>
+
+            <!-- סיכונים (לטעינה/תצוגה) -->
+            <div class="col-md-6">
+                <label class="form-label">סיכונים</label>
+                <select class="form-select" id="Risks">
+                    <option value="">בחר סיכון</option>
+                </select>
+                <div class="hint">ב־Create לא נשלח ל־API (אצלך זה ב־Update), כרגע לטעינה/תצוגה.</div>
+            </div>
+
+            <!-- עובדים: מקטע יחיד עם חיפוש + צ'קבוקסים + אישור -->
+            <div class="col-12">
+                <label class="form-label d-block">בחירת עובדים (EmployeeIds)</label>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-sm-6 col-md-4">
+                                <div class="input-group">
+                                    <span class="input-group-text">חיפוש</span>
+                                    <input type="text" id="employeesSearch" class="form-control" placeholder="הקלד שם עובד...">
+                                </div>
+                            </div>
+
+                            <div class="col-auto">
+                                <button class="btn btn-sm btn-outline-secondary" type="button" id="employeesSelectAll">בחר הכל</button>
+                                <button class="btn btn-sm btn-outline-secondary" type="button" id="employeesClearAll">נקה</button>
+                            </div>
+
+                            <div class="col-12">
+                                <div id="employeesList" class="list-group emp-list"><!-- ימולא דינמית --></div>
+                            </div>
+
+                            <div class="col-12 d-flex justify-content-between align-items-center mt-2">
+                                <div id="employeesSummary" class="text-muted">לא נבחרו עובדים</div>
+                                <button type="button" class="btn btn-primary btn-sm" id="btnEmployeesApply">אישור</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <input type="hidden" id="EmployeesSelected" value="" />
+            </div>
+
+            <!-- כפתורי פעולה -->
+            <div class="col-12 d-flex flex-wrap align-items-center gap-2">
+                <button type="button" id="btnSubmit" class="btn btn-primary">שמור ושלח לחתימות</button>
+                <button type="button" id="btnOpenForSign" class="btn btn-outline-primary" disabled>פתח לחתימות</button>
+                <button type="button" id="btnStatus" class="btn btn-outline-secondary" disabled>בדוק סטטוס</button>
+                <button type="button" id="btnClose" class="btn btn-outline-danger" disabled>סגור טופס</button>
+                <button type="reset" id="btnReset" class="btn btn-outline-secondary">נקה</button>
+
+                <span class="ms-2 text-muted">מס' טופס אחרון: <strong id="lastFormId">—</strong></span>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+
+@section scripts {
+    <script>
+        // ==== Helperים קצרים ====
+        function pick(obj, ...names) {
+            for (var i = 0; i < names.length; i++) {
+                if (obj && obj[names[i]] !== undefined && obj[names[i]] !== null) return obj[names[i]];
+            }
+            return undefined;
+        }
+        function buildIsoDateTime(dateStr, timeStr) {
+            if (!dateStr) return null;
+            const t = (timeStr && timeStr.length >= 5) ? timeStr : "00:00";
+            return new Date(dateStr + "T" + t).toISOString();
+        }
+
+        // ==== מצב גלובלי קטן ====
+        let lastWorkFormId = null;
+        function setLastId(id) {
+            lastWorkFormId = id || null;
+            document.getElementById('lastFormId').textContent = lastWorkFormId ?? '—';
+            document.getElementById('btnOpenForSign').disabled = !lastWorkFormId;
+            document.getElementById('btnStatus').disabled = !lastWorkFormId;
+            document.getElementById('btnClose').disabled = !lastWorkFormId;
+        }
+
+        // ==== Employees UI state ====
+        window._employees = [];
+        function getSelectedEmployeeIds() {
+            const val = document.getElementById('EmployeesSelected')?.value?.trim() || '';
+            return val ? val.split(',').filter(Boolean) : [];
+        }
+        function setSelectedEmployeeIds(ids) {
+            const el = document.getElementById('EmployeesSelected');
+            if (el) el.value = (ids || []).join(',');
+        }
+        function updateEmployeesSummary() {
+            const ids = getSelectedEmployeeIds();
+            const box = document.getElementById('employeesSummary');
+            if (!box) return;
+            if (!ids.length) { box.innerHTML = 'לא נבחרו עובדים'; box.classList.add('text-muted'); return; }
+            const names = (window._employees || [])
+                .filter(e => ids.includes(String(pick(e, 'Id', 'id'))) || ids.includes(pick(e, 'Id', 'id')))
+                .map(e => pick(e, 'FullName', 'fullName') || '(ללא שם)');
+            box.classList.remove('text-muted');
+            box.innerHTML = names.map(n => `<span class="badge bg-secondary me-1 mb-1">${n}</span>`).join(' ');
+        }
+        function renderEmployeesList(filter) {
+            const cont = document.getElementById('employeesList');
+            if (!cont) return;
+            const term = (filter || '').trim().toLowerCase();
+            const selected = new Set(getSelectedEmployeeIds());
+            cont.innerHTML = '';
+            (window._employees || []).forEach(emp => {
+                const id = String(pick(emp, 'Id', 'id')); if (!id) return;
+                const fullName = (pick(emp, 'FullName', 'fullName') || '').toLowerCase();
+                if (term && !fullName.includes(term)) return;
+                const checked = selected.has(id) ? 'checked' : '';
+                cont.insertAdjacentHTML('beforeend',
+                    `<label class="list-group-item d-flex align-items-center gap-2">
+                   <input class="form-check-input me-2 emp-check" type="checkbox" value="${id}" ${checked}>
+                   <span>${pick(emp, 'FullName', 'fullName') || '(ללא שם)'}</span>
+                 </label>`);
+            });
+        }
+
+        // ==== טעינת נתונים ====
+        async function loadEmployees() {
+            try {
+                const res = await fetch('/api/v1/employees');
+                if (!res.ok) throw new Error('Employees GET failed: ' + res.status);
+                const list = await res.json();
+                window._employees = Array.isArray(list) ? list : [];
+                renderEmployeesList('');
+            } catch (e) {
+                console.error(e);
+                window._employees = [];
+                renderEmployeesList('');
+            }
+        }
+        async function loadRisks() {
+            try {
+                const res = await fetch('/api/v1/risks');
+                if (!res.ok) throw new Error('Risks GET failed: ' + res.status);
+                const list = await res.json();
+                const sel = document.getElementById('Risks');
+                if (!sel) return;
+                sel.innerHTML = '<option value="">בחר סיכון</option>';
+                (Array.isArray(list) ? list : []).forEach(r => {
+                    const id = pick(r, 'Id', 'id'); const name = pick(r, 'Name', 'name') || '(ללא שם)';
+                    if (id === undefined || id === null) return;
+                    const opt = document.createElement('option'); opt.value = id; opt.textContent = name;
+                    sel.appendChild(opt);
+                });
+            } catch (e) {
+                console.error(e);
+                const sel = document.getElementById('Risks');
+                if (sel) sel.innerHTML = '<option value="">— שגיאה בטעינה —</option>';
+            }
+        }
+
+        // ==== פעולות API על הטופס שנוצר ====
+        async function openForSign(id, silent = false) {
+            if (!id) return;
+            const res = await fetch(`/api/v1/workforms/${id}/send`, { method: 'POST' });
+            const t = await res.text();
+            if (!res.ok) {
+                console.warn('openForSign failed', res.status, t);
+                if (!silent) alert('שגיאה בפתיחה לחתימות (' + res.status + ')');
+                return false;
+            }
+            if (!silent) alert('הטופס נפתח לחתימות');
+            return true;
+        }
+        async function checkStatus(id) {
+            if (!id) return;
+            const res = await fetch(`/api/v1/workforms/${id}/status`);
+            const s = await res.json();
+            alert(`סטטוס: ${s.status}\nנחתמו: ${s.signedCount || 0}${s.total ? ` מתוך ${s.total}` : ''}`);
+        }
+        async function closeForm(id) {
+            if (!id) return;
+            const res = await fetch(`/api/v1/workforms/${id}/close`, { method: 'POST' });
+            const t = await res.text();
+            if (!res.ok) {
+                console.warn('close failed', res.status, t);
+                alert('לא ניתן לסגור (אולי יש עובדים שלא חתמו?)');
+                return;
+            }
+            alert('הטופס נסגר');
+        }
+
+        // ==== שליחה (Create) ====
+        async function submitWorkForm() {
+            const managerId = parseInt(document.getElementById('ManagerId').value || '0', 10);
+            const site = (document.getElementById('Site').value || '').trim();
+            const dateStr = document.getElementById('WorkDate').value || '';
+            const timeStr = document.getElementById('WorkTime').value || '';
+            const workType = (document.getElementById('WorkType').value || '').trim();
+            const employeeIds = getSelectedEmployeeIds().map(x => parseInt(x, 10)).filter(n => !Number.isNaN(n));
+            const workDateTimeIso = buildIsoDateTime(dateStr, timeStr);
+
+            if (!managerId || !site || !workDateTimeIso || !workType) {
+                alert('אנא מלא/י: מזהה מנהל, אתר עבודה, תאריך/שעה, סוג עבודה.');
+                return;
+            }
+
+            const dto = { ManagerId: managerId, Site: site, WorkDateTime: workDateTimeIso, WorkType: workType, EmployeeIds: employeeIds };
+
+            try {
+                const res = await fetch('/api/v1/workforms', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dto)
+                });
+
+                const text = await res.text();
+                if (!res.ok) {
+                    console.error('Create failed', res.status, text);
+                    alert('שגיאה ביצירה (' + res.status + ') – ראה פירוט בקונסול.');
+                    return;
+                }
+
+                const data = JSON.parse(text || '{}');
+                const id = data.id ?? data.Id ?? data.workFormId ?? data.WorkFormId;
+                setLastId(id);
+                alert('נוצר בהצלחה! מספר טופס: ' + (id ?? '[לא הוחזר מזהה]'));
+
+                // פותח אוטומטית לחתימות
+                if (id) await openForSign(id, /*silent=*/true);
+            } catch (err) {
+                console.error(err);
+                alert('שגיאה בשליחה. בדוק קונסול/Network.');
+            }
+        }
+
+        // ==== אירועים ====
+        document.getElementById('btnSubmit')?.addEventListener('click', submitWorkForm);
+        document.getElementById('btnReset')?.addEventListener('click', () => { setSelectedEmployeeIds([]); updateEmployeesSummary(); setLastId(null); });
+        document.getElementById('btnOpenForSign')?.addEventListener('click', () => openForSign(lastWorkFormId));
+        document.getElementById('btnStatus')?.addEventListener('click', () => checkStatus(lastWorkFormId));
+        document.getElementById('btnClose')?.addEventListener('click', () => closeForm(lastWorkFormId));
+
+        // Employees list controls
+        document.getElementById('btnEmployeesApply')?.addEventListener('click', function () {
+            const checks = document.querySelectorAll('#employeesList .emp-check:checked');
+            const ids = Array.from(checks).map(c => c.value);
+            setSelectedEmployeeIds(ids);
+            updateEmployeesSummary();
+        });
+        document.getElementById('employeesSearch')?.addEventListener('input', e => renderEmployeesList(e.target.value));
+        document.getElementById('employeesSelectAll')?.addEventListener('click', () => {
+            document.querySelectorAll('#employeesList .emp-check').forEach(c => c.checked = true);
+        });
+        document.getElementById('employeesClearAll')?.addEventListener('click', () => {
+            document.querySelectorAll('#employeesList .emp-check').forEach(c => c.checked = false);
+        });
+
+        // Init
+        loadEmployees();
+        loadRisks();
+        updateEmployeesSummary();
+        setLastId(null);
+    </script>
+}
+

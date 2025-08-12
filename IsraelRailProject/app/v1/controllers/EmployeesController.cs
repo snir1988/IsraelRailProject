@@ -1,4 +1,5 @@
-﻿using System.Web.Http;
+﻿// app/v1/controllers/EmployeesController.cs
+using System.Web.Http;
 using IsraelRailProject.app.v1.DAL;
 
 namespace IsraelRailProject.app.v1.controllers
@@ -6,11 +7,11 @@ namespace IsraelRailProject.app.v1.controllers
     [RoutePrefix("api/v1/employees")]
     public class EmployeesController : ApiController
     {
-        // GET /api/v1/employees
+        // מחזיר את רשימת העובדים מתוך ה-DB (Users.Role='Employee')
         [HttpGet, Route("")]
-        public IHttpActionResult GetAll()
+        public IHttpActionResult Get()
         {
-            var list = UserDAL.GetEmployees();
+            var list = UserDAL.GetEmployees(); // <-- זה מה-DB שלך
             return Ok(list);
         }
     }

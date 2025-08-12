@@ -1,77 +1,133 @@
 ﻿// קובץ: app/v1/controllers/WorkFormController.cs
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Web.Http;
 using IsraelRailProject.app.v1.DAL;
 using IsraelRailProject.app.v1.models;
 using IsraelRailProject.app.v1.models.dtos;
 
 namespace IsraelRailProject.app.v1.controllers
 {
-    [System.Web.Http.RoutePrefix("api/v1/workforms")]
-    public class WorkFormController : System.Web.Http.ApiController
+    [RoutePrefix("api/v1/workforms")]
+    public class WorkFormController : ApiController
     {
-        // POST /api/v1/workforms  (יצירת טופס + שיוך עובדים אופציונלי)
-        [System.Web.Http.HttpPost, System.Web.Http.Route("")]
-        public System.Web.Http.IHttpActionResult Create([System.Web.Http.FromBody] WorkFormCreateDto dto)
+
+
+        // --------------------------------------------
+        // POST /api/v1/workforms  (יצירת טופס + שיוך עובדים)
+        // --------------------------------------------
+        [HttpPost, Route("")]
+        public IHttpActionResult Create([FromBody] WorkFormCreateDto dto)
         {
             if (dto == null) return BadRequest("Body is required");
-            if (string.IsNullOrWhiteSpace(dto.Site) || string.IsNullOrWhiteSpace(dto.WorkType))
-                return BadRequest("Site ו-WorkType הם שדות חובה");
+            if (dto.ManagerId <= 0) return BadRequest("ManagerId חובה וחייב להיות גדול מ-0");
+            if (string.IsNullOrWhiteSpace(dto.Site)) return BadRequest("Site הוא שדה חובה");
+            if (string.IsNullOrWhiteSpace(dto.WorkType)) return BadRequest("WorkType הוא שדה חובה");
 
             try
             {
-                var workUtc = dto.WorkDateTime.Kind == DateTimeKind.Utc
-                              ? dto.WorkDateTime
-                              : dto.WorkDateTime.ToUniversalTime();
+                // בדיקת קיום מנהל
+                if (!UserDAL.UserExists(dto.ManagerId))
+                    return Content(HttpStatusCode.BadRequest,
+                        new { ok = false, message = "ManagerId לא קיים בטבלת Users" });
 
+                // נורמליזציה של זמן
+                var workUtc = dto.WorkDateTime.Kind == DateTimeKind.Utc
+                                ? dto.WorkDateTime
+                                : dto.WorkDateTime.ToUniversalTime();
+
+                // יצירת הרשומה הראשית
                 var wf = new WorkForm
                 {
                     ManagerId = dto.ManagerId,
-                    Site = dto.Site,
+                    Site = dto.Site.Trim(),
                     WorkDateTime = workUtc,
-                    WorkType = dto.WorkType
+                    WorkType = dto.WorkType.Trim()
                 };
+                var newId = WorkFormDAL.Create(wf);
 
-                var id = WorkFormDAL.Create(wf);
+                // בדיקת עובדים: ניקוי כפילויות + קיום כ-Employee
+                var validEmpIds = new List<int>();
+                var invalidEmpIds = new List<int>();
 
-                // שיוך עובדים אם נשלחו
-                if (dto.EmployeeIds != null)
+                if (dto.EmployeeIds != null && dto.EmployeeIds.Count > 0)
                 {
-                    foreach (var empId in dto.EmployeeIds)
-                        WorkFormEmployeeDAL.Add(id, empId);
+                    foreach (var empId in dto.EmployeeIds.Where(i => i > 0).Distinct())
+                    {
+                        if (UserDAL.IsEmployeeId(empId)) validEmpIds.Add(empId);
+                        else invalidEmpIds.Add(empId);
+                    }
                 }
 
-                var created = WorkFormDAL.GetById(id);
-                return Ok(created);
+                // אם יש מזהים לא תקינים - נחזיר 400 עם פירוט (אפשר לשנות להתעלמות שקטה)
+                if (invalidEmpIds.Count > 0)
+                {
+                    return Content(HttpStatusCode.BadRequest, new
+                    {
+                        ok = false,
+                        message = "יש עובדים שלא קיימים כ-Employee בטבלת Users",
+                        invalidIds = invalidEmpIds
+                    });
+                }
+
+                // שיוכים חוקיים בלבד
+                foreach (var empId in validEmpIds)
+                    WorkFormEmployeeDAL.Add(newId, empId);
+
+                var created = WorkFormDAL.GetById(newId);
+
+                // נחזיר 200 OK עם מבנה פשוט ובטוח לפרסינג בצד הלקוח
+                return Ok(new { id = created.Id, version = created.Version });
+
             }
             catch (Exception ex)
             {
-                return Content(System.Net.HttpStatusCode.InternalServerError,
+                // בזמן דיבוג נחזיר פירוט מלא כדי לעלות על תקלות מהר
+                return Content(HttpStatusCode.InternalServerError,
+                    new { ok = false, error = ex.ToString() });
+            }
+        }
+
+
+        // --------------------------------------------
+        // GET /api/v1/workforms?managerId=1
+        // --------------------------------------------
+        [HttpGet, Route("")]
+        public IHttpActionResult ByManager([FromUri] int? managerId = null)
+        {
+            if (managerId == null || managerId <= 0)
+                return BadRequest("יש לספק managerId תקין בשורת הכתובת (?managerId=)");
+
+            try
+            {
+                var list = WorkFormDAL.GetByManager(managerId.Value) ?? new List<WorkForm>();
+                return Ok(list);
+            }
+            catch (Exception ex)
+            {
+                return Content(HttpStatusCode.InternalServerError,
                                new { ok = false, error = ex.Message });
             }
         }
 
-        // GET /api/v1/workforms?managerId=1
-        [System.Web.Http.HttpGet, System.Web.Http.Route("")]
-        public System.Web.Http.IHttpActionResult ByManager([System.Web.Http.FromUri] int managerId)
-        {
-            var list = WorkFormDAL.GetByManager(managerId);
-            return Ok(list);
-        }
-
+        // --------------------------------------------
         // GET /api/v1/workforms/{id}  (טופס בודד)
-        [System.Web.Http.HttpGet, System.Web.Http.Route("{id:int}")]
-        public System.Web.Http.IHttpActionResult GetOne(int id)
+        // --------------------------------------------
+        [HttpGet, Route("{id:int}", Name = "GetWorkFormById")]
+        public IHttpActionResult GetOne(int id)
         {
             var wf = WorkFormDAL.GetById(id);
             if (wf == null) return NotFound();
             return Ok(wf);
         }
 
+        // --------------------------------------------
         // POST /api/v1/workforms/{id}/send  (פתיחה לחתימות)
-        [System.Web.Http.HttpPost, System.Web.Http.Route("{id:int}/send")]
-        public System.Web.Http.IHttpActionResult OpenForSign(int id)
+        // --------------------------------------------
+        [HttpPost, Route("{id:int}/send")]
+        public IHttpActionResult OpenForSign(int id)
         {
             try
             {
@@ -83,23 +139,24 @@ namespace IsraelRailProject.app.v1.controllers
             }
             catch (Exception ex)
             {
-                return Content(System.Net.HttpStatusCode.InternalServerError,
+                return Content(HttpStatusCode.InternalServerError,
                                new { ok = false, error = ex.Message });
             }
         }
 
+        // --------------------------------------------
         // GET /api/v1/workforms/{id}/status
-        [System.Web.Http.HttpGet, System.Web.Http.Route("{id:int}/status")]
-        public System.Web.Http.IHttpActionResult Status(int id)
+        // --------------------------------------------
+        [HttpGet, Route("{id:int}/status")]
+        public IHttpActionResult Status(int id)
         {
             var wf = WorkFormDAL.GetById(id);
             if (wf == null) return NotFound();
 
-            var assignedIds = WorkFormEmployeeDAL.GetAssignedIds(id);            // מי אמור לחתום
+            var assignedIds = WorkFormEmployeeDAL.GetAssignedIds(id);         // מי אמור לחתום
             var signedIds = SignatureDAL.GetSignedEmployeeIds(id, wf.Version); // מי חתם בפועל
             var total = assignedIds.Count > 0 ? (int?)assignedIds.Count : null;
-
-            var pendingIds = assignedIds.Except(signedIds).ToList();             // מי חסר
+            var pendingIds = assignedIds.Except(signedIds).ToList();
 
             return Ok(new
             {
@@ -114,9 +171,11 @@ namespace IsraelRailProject.app.v1.controllers
             });
         }
 
-        // POST /api/v1/workforms/{id}/close  (סגירת טופס כשכל העובדים חתמו)
-        [System.Web.Http.HttpPost, System.Web.Http.Route("{id:int}/close")]
-        public System.Web.Http.IHttpActionResult Close(int id)
+        // --------------------------------------------
+        // POST /api/v1/workforms/{id}/close  (סגירת טופס)
+        // --------------------------------------------
+        [HttpPost, Route("{id:int}/close")]
+        public IHttpActionResult Close(int id)
         {
             try
             {
@@ -126,7 +185,6 @@ namespace IsraelRailProject.app.v1.controllers
                 if (wf.Status == "Closed")
                     return Ok(new { message = "הטופס כבר סגור", id });
 
-                // מי אמור לחתום ומי חתם בפועל
                 var assignedIds = WorkFormEmployeeDAL.GetAssignedIds(id);
                 var signedIds = SignatureDAL.GetSignedEmployeeIds(id, wf.Version);
 
@@ -135,7 +193,7 @@ namespace IsraelRailProject.app.v1.controllers
                     var pending = assignedIds.Except(signedIds).ToList();
                     if (pending.Count > 0)
                     {
-                        return Content(System.Net.HttpStatusCode.BadRequest, new
+                        return Content(HttpStatusCode.BadRequest, new
                         {
                             ok = false,
                             message = "לא ניתן לסגור – יש עובדים שלא חתמו",
@@ -146,20 +204,21 @@ namespace IsraelRailProject.app.v1.controllers
                     }
                 }
 
-                // אם אין שיוכים בכלל, נאפשר סגירה (לדמו)
                 WorkFormDAL.SetStatus(id, "Closed");
                 return Ok(new { message = "הטופס נסגר", id });
             }
             catch (Exception ex)
             {
-                return Content(System.Net.HttpStatusCode.InternalServerError,
+                return Content(HttpStatusCode.InternalServerError,
                                new { ok = false, error = ex.Message });
             }
         }
 
-        // PUT /api/v1/workforms/{id}  (יוצר גרסה חדשה עם שדות מעודכנים) — כלל 12 שעות
-        [System.Web.Http.HttpPut, System.Web.Http.Route("{id:int}")]
-        public System.Web.Http.IHttpActionResult Update(int id, [System.Web.Http.FromBody] WorkFormUpdateDto dto)
+        // --------------------------------------------
+        // PUT /api/v1/workforms/{id}  (גרסה חדשה, כלל 12 שעות)
+        // --------------------------------------------
+        [HttpPut, Route("{id:int}")]
+        public IHttpActionResult Update(int id, [FromBody] WorkFormUpdateDto dto)
         {
             if (dto == null) return BadRequest("Body is required");
 
@@ -170,35 +229,38 @@ namespace IsraelRailProject.app.v1.controllers
 
                 // כלל 12 שעות
                 if (DateTime.UtcNow > current.WorkDateTime.AddHours(12))
-                    return Content(System.Net.HttpStatusCode.BadRequest,
+                    return Content(HttpStatusCode.BadRequest,
                                    new { ok = false, message = "חלון 12 השעות לעריכה הסתיים" });
 
                 // צור גרסה חדשה
                 var newId = WorkFormDAL.CreateNewVersion(id);
                 var newForm = WorkFormDAL.GetById(newId);
 
-                // עדכון שדות בסיסיים מה־DTO
-                newForm.Site = dto.Site ?? newForm.Site;
-                newForm.WorkType = dto.WorkType ?? newForm.WorkType;
-                newForm.WorkDateTime = dto.WorkDateTime == default(DateTime)
-                    ? newForm.WorkDateTime
-                    : (dto.WorkDateTime.Kind == DateTimeKind.Utc ? dto.WorkDateTime : dto.WorkDateTime.ToUniversalTime());
+                // עדכון שדות בסיסיים
+                if (!string.IsNullOrWhiteSpace(dto.Site)) newForm.Site = dto.Site.Trim();
+                if (!string.IsNullOrWhiteSpace(dto.WorkType)) newForm.WorkType = dto.WorkType.Trim();
+                if (dto.WorkDateTime != default(DateTime))
+                {
+                    newForm.WorkDateTime = dto.WorkDateTime.Kind == DateTimeKind.Utc
+                        ? dto.WorkDateTime
+                        : dto.WorkDateTime.ToUniversalTime();
+                }
 
                 WorkFormDAL.UpdateBasic(newForm);
 
-                // אם שלחו רשימת עובדים – נחליף (אחרת נשאר מההעתקה)
+                // החלפת עובדים אם נשלחו
                 if (dto.EmployeeIds != null)
                 {
                     WorkFormEmployeeDAL.RemoveAllForForm(newId);
-                    foreach (var empId in dto.EmployeeIds)
+                    foreach (var empId in dto.EmployeeIds.Where(x => x > 0).Distinct())
                         WorkFormEmployeeDAL.Add(newId, empId);
                 }
 
-                // אם שלחו סיכונים – נחליף (אחרת נשאר מההעתקה)
+                // החלפת סיכונים אם נשלחו
                 if (dto.RiskItemIds != null)
                 {
                     WorkFormRiskItemDAL.RemoveAllForForm(newId);
-                    foreach (var rid in dto.RiskItemIds)
+                    foreach (var rid in dto.RiskItemIds.Where(x => x > 0).Distinct())
                         WorkFormRiskItemDAL.Add(newId, rid);
                 }
 
@@ -207,9 +269,16 @@ namespace IsraelRailProject.app.v1.controllers
             }
             catch (Exception ex)
             {
-                return Content(System.Net.HttpStatusCode.InternalServerError,
+                return Content(HttpStatusCode.InternalServerError,
                                new { ok = false, error = ex.Message });
             }
+        }
+
+        // אופציונלי: תמיכה ב-OPTIONS ל-CORS/Preflight
+        [HttpOptions, Route("{*any}")]
+        public IHttpActionResult Options()
+        {
+            return Ok();
         }
     }
 }
