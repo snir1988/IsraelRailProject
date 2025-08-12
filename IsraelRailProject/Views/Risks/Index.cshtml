@@ -1,2 +1,226 @@
-﻿@{ ViewBag.Title = "עובדים"; }
-<div class="container py-4"><h1>עובדים</h1><p>דף Placeholder</p></div>
+﻿@{
+    ViewBag.Title = "ניהול סיכונים";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" />
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>ניהול סיכונים</strong>
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary btn-sm" id="btnAddRisk">הוספת סיכון</button>
+            <button class="btn btn-outline-secondary btn-sm" id="btnReload">רענון</button>
+        </div>
+    </div>
+    <div class="card-body">
+        <table id="RisksTbl" class="table table-borderless table-hover w-100">
+            <thead>
+                <tr>
+                    <th style="width:90px">מזהה</th>
+                    <th>שם סיכון</th>
+                    <th style="width:120px">סטטוס</th>
+                    <th style="width:120px">ניהול</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal: Add/Edit Risk -->
+<div class="modal fade" id="riskModal" tabindex="-1" aria-labelledby="riskModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 id="riskModalLabel" class="modal-title">סיכון</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="סגור"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="RiskId" value="" />
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="RiskName" class="form-label">שם הסיכון</label>
+                        <input id="RiskName" class="form-control" placeholder="לדוגמה: עבודה בגובה" />
+                    </div>
+                    <div class="col-md-6">
+                        <label for="RiskStatus" class="form-label">סטטוס</label>
+                        <select id="RiskStatus" class="form-select">
+                            <option value="1">פעיל</option>
+                            <option value="0">לא פעיל</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label for="RiskDesc" class="form-label">תיאור</label>
+                        <textarea id="RiskDesc" class="form-control" rows="8"></textarea>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">סגור</button>
+                <button class="btn btn-primary" id="btnSaveRisk">שמירה</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+
+    <script>
+        // ===== Utils =====
+        function pick(obj, ...names) {
+            for (var i = 0; i < names.length; i++) {
+                if (obj && obj[names[i]] !== undefined && obj[names[i]] !== null) return obj[names[i]];
+            }
+            return undefined;
+        }
+        function statusText(v) { return (String(v) === '1' || v === 1) ? 'פעיל' : 'לא פעיל'; }
+
+        // ===== DataTable =====
+        let tbl;
+        function initTable() {
+            if (tbl) { tbl.ajax.reload(null, false); return; }
+            tbl = $('#RisksTbl').DataTable({
+                ajax: { url: '/api/v1/risks', dataSrc: '' },
+                language: { url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/he.json' },
+                columns: [
+                    { data: r => pick(r, 'Id', 'id') },
+                    { data: r => pick(r, 'Name', 'name') },
+                    { data: r => statusText(pick(r, 'Status', 'status')) },
+                    {
+                        data: null, orderable: false, searchable: false,
+                        render: function (r) {
+                            const id = pick(r, 'Id', 'id');
+                            return `
+                    <div class="dropdown">
+                      <button class="btn btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">ניהול</button>
+                      <div class="dropdown-menu dropdown-menu-end">
+                        <a class="dropdown-item btn-edit" data-id="${id}" href="#">עריכה</a>
+                        <a class="dropdown-item text-danger btn-del" data-id="${id}" href="#">מחיקה</a>
+                      </div>
+                    </div>`;
+                        }
+                    }
+                ],
+                pageLength: 16,
+                lengthMenu: [[16, 32, 64, -1], [16, 32, 64, 'הכל']]
+            });
+        }
+
+        // ===== Modal helpers (TinyMCE) =====
+        function ensureEditor() {
+            const existing = tinymce.get('RiskDesc');
+            if (existing) return existing;
+            return tinymce.init({
+                selector: '#RiskDesc',
+                height: 360,
+                directionality: 'rtl',
+                plugins: 'advlist autolink lists link image preview fullscreen table code',
+                toolbar: 'undo redo | bold italic | alignleft aligncenter alignright | bullist numlist | link | code'
+            });
+        }
+        function destroyEditor() {
+            const ed = tinymce.get('RiskDesc');
+            if (ed) ed.remove();
+        }
+
+        // ===== Open Add/Edit =====
+        function openAddModal() {
+            document.getElementById('riskModalLabel').textContent = 'הוספת סיכון';
+            document.getElementById('RiskId').value = '';
+            document.getElementById('RiskName').value = '';
+            document.getElementById('RiskStatus').value = '1';
+            ensureEditor(); setTimeout(() => tinymce.get('RiskDesc')?.setContent(''), 50);
+            new bootstrap.Modal(document.getElementById('riskModal')).show();
+        }
+        async function openEditModal(id) {
+            document.getElementById('riskModalLabel').textContent = 'עריכת סיכון #' + id;
+            document.getElementById('RiskId').value = id;
+            ensureEditor();
+
+            try {
+                const res = await fetch('/api/v1/risks/' + id);
+                if (!res.ok) throw new Error('GET risk failed: ' + res.status);
+                const r = await res.json();
+                document.getElementById('RiskName').value = pick(r, 'Name', 'name') || '';
+                document.getElementById('RiskStatus').value = String(pick(r, 'Status', 'status') ?? 1);
+                setTimeout(() => tinymce.get('RiskDesc')?.setContent(pick(r, 'Description', 'description') || ''), 50);
+            } catch (e) {
+                console.error(e);
+                alert('שגיאה בטעינת הסיכון לעריכה');
+                return;
+            }
+
+            new bootstrap.Modal(document.getElementById('riskModal')).show();
+        }
+
+        // ===== Save (POST/PUT) =====
+        async function saveRisk() {
+            const id = document.getElementById('RiskId').value.trim();
+            const dto = {
+                Name: (document.getElementById('RiskName').value || '').trim(),
+                Status: parseInt(document.getElementById('RiskStatus').value || '1', 10),
+                Description: tinymce.get('RiskDesc')?.getContent() || ''
+            };
+            if (!dto.Name) { alert('יש להזין שם סיכון'); return; }
+
+            const url = id ? `/api/v1/risks/${id}` : '/api/v1/risks';
+            const method = id ? 'PUT' : 'POST';
+
+            try {
+                const res = await fetch(url, {
+                    method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dto)
+                });
+                const t = await res.text();
+                if (!res.ok) { console.error(t); alert('שגיאה בשמירה'); return; }
+
+                bootstrap.Modal.getInstance(document.getElementById('riskModal'))?.hide();
+                destroyEditor(); // ניצור מחדש בפתיחה הבאה
+                initTable(); // reload
+                alert('נשמר בהצלחה');
+            } catch (e) {
+                console.error(e);
+                alert('שגיאה בשמירה (ראה קונסול)');
+            }
+        }
+
+        // ===== Delete =====
+        async function deleteRisk(id) {
+            if (!confirm('למחוק את הסיכון #' + id + '?')) return;
+            try {
+                const res = await fetch(`/api/v1/risks/${id}`, { method: 'DELETE' });
+                const t = await res.text();
+                if (!res.ok) { console.error(t); alert('שגיאה במחיקה'); return; }
+                initTable(); // reload
+            } catch (e) {
+                console.error(e);
+                alert('שגיאה במחיקה (ראה קונסול)');
+            }
+        }
+
+        // ===== Events =====
+        document.getElementById('btnAddRisk')?.addEventListener('click', openAddModal);
+        document.getElementById('btnReload')?.addEventListener('click', () => initTable());
+
+        document.getElementById('btnSaveRisk')?.addEventListener('click', saveRisk);
+
+        // האזנה לפעולות בטבלה (דינמי)
+        document.addEventListener('click', function (e) {
+            const editBtn = e.target.closest('.btn-edit');
+            const delBtn = e.target.closest('.btn-del');
+            if (editBtn) { e.preventDefault(); openEditModal(editBtn.dataset.id); }
+            if (delBtn) { e.preventDefault(); deleteRisk(delBtn.dataset.id); }
+        });
+
+        // ניהול TinyMCE כשהמודאל נסגר
+        document.getElementById('riskModal')?.addEventListener('hidden.bs.modal', destroyEditor);
+
+        // Init
+        initTable();
+    </script>
+}

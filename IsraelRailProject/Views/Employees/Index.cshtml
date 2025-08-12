@@ -1,3 +1,64 @@
-﻿@{ ViewBag.Title = "עובדים"; }
-<div class="container py-4"><h1>עובדים</h1><p>דף Placeholder</p></div>
+﻿@{
+    ViewBag.Title = "ניהול עובדים";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" />
+
+<div class="card">
+    <div class="card-header"><strong>ניהול עובדים</strong></div>
+    <div class="card-body">
+        <table class="table table-borderless table-hover" id="MainTbl" style="width:100%">
+            <thead>
+                <tr>
+                    <th>מזהה</th>
+                    <th>שם עובד</th>
+                    <th>ניהול</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+@section scripts {
+    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+    $(function () {
+      $('#MainTbl').DataTable({
+        ajax: { url: '/api/v1/employees', dataSrc: '' },
+        language: { url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/he.json' },
+        columns: [
+          { data: (row) => row.id ?? row.Id },
+          { data: (row) => row.fullName ?? row.FullName },
+          {
+            data: null, orderable: false, searchable: false,
+            render: function (row) {
+              var id = row.id ?? row.Id;
+              return `
+                <div class="dropdown">
+                  <button class="btn btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    ניהול
+                  </button>
+                  <div class="dropdown-menu dropdown-menu-end">
+                    <a class="dropdown-item" href="/ui/employees/edit/${id}">עריכה</a>
+                    <a class="dropdown-item text-danger" href="#" onclick="return deleteEmployee(${id})">מחיקה</a>
+                  </div>
+                </div>`;
+            }
+          }
+        ],
+        pageLength: 16,
+        lengthMenu: [[16, 32, 64, -1], [16, 32, 64, 'הכל']]
+      });
+    });
+
+    async function deleteEmployee(id) {
+      // TODO: לחבר ל-API מחיקה כשיהיה
+      alert('מחיקה לעובד #' + id + ' — נחבר ל-API בהמשך');
+      return false;
+    }
+    </script>
+}
+
 
