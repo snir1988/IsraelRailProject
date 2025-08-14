@@ -175,6 +175,7 @@
     <Content Include="Content\template\js\topojson.min.js" />
     <Content Include="Content\template\js\uppy.min.js" />
     <Content Include="Global.asax" />
+    <Content Include="README.txt" />
     <Content Include="Web.config" />
   </ItemGroup>
   <ItemGroup>
