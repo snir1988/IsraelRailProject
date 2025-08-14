@@ -13,10 +13,8 @@ namespace IsraelRailProject.app.v1.controllers
     [RoutePrefix("api/v1/workforms")]
     public class WorkFormController : ApiController
     {
-
-
         // --------------------------------------------
-        // POST /api/v1/workforms  (יצירת טופס + שיוך עובדים)
+        // POST /api/v1/workforms  (יצירת טופס + שיוך עובדים/סיכונים)
         // --------------------------------------------
         [HttpPost, Route("")]
         public IHttpActionResult Create([FromBody] WorkFormCreateDto dto)
@@ -33,7 +31,7 @@ namespace IsraelRailProject.app.v1.controllers
                     return Content(HttpStatusCode.BadRequest,
                         new { ok = false, message = "ManagerId לא קיים בטבלת Users" });
 
-                // נורמליזציה של זמן
+                // נורמליזציה של זמן ל-UTC
                 var workUtc = dto.WorkDateTime.Kind == DateTimeKind.Utc
                                 ? dto.WorkDateTime
                                 : dto.WorkDateTime.ToUniversalTime();
@@ -48,10 +46,9 @@ namespace IsraelRailProject.app.v1.controllers
                 };
                 var newId = WorkFormDAL.Create(wf);
 
-                // בדיקת עובדים: ניקוי כפילויות + קיום כ-Employee
+                // שיוך עובדים (רק קיימים/בתפקיד Employee)
                 var validEmpIds = new List<int>();
                 var invalidEmpIds = new List<int>();
-
                 if (dto.EmployeeIds != null && dto.EmployeeIds.Count > 0)
                 {
                     foreach (var empId in dto.EmployeeIds.Where(i => i > 0).Distinct())
@@ -61,7 +58,6 @@ namespace IsraelRailProject.app.v1.controllers
                     }
                 }
 
-                // אם יש מזהים לא תקינים - נחזיר 400 עם פירוט (אפשר לשנות להתעלמות שקטה)
                 if (invalidEmpIds.Count > 0)
                 {
                     return Content(HttpStatusCode.BadRequest, new
@@ -72,24 +68,28 @@ namespace IsraelRailProject.app.v1.controllers
                     });
                 }
 
-                // שיוכים חוקיים בלבד
                 foreach (var empId in validEmpIds)
                     WorkFormEmployeeDAL.Add(newId, empId);
 
+                // ✅ שיוך סיכונים לטופס החדש
+                if (dto.RiskItemIds != null && dto.RiskItemIds.Count > 0)
+                {
+                    foreach (var rid in dto.RiskItemIds.Where(x => x > 0).Distinct())
+                        WorkFormRiskItemDAL.Add(newId, rid);
+                    // לחלופין, אם קיימת אצלך מתודה מרוכזת:
+                    // WorkFormDAL.SetRiskItems(newId, dto.RiskItemIds);
+                }
+
+                // נחזיר פרטי בסיס
                 var created = WorkFormDAL.GetById(newId);
-
-                // נחזיר 200 OK עם מבנה פשוט ובטוח לפרסינג בצד הלקוח
                 return Ok(new { id = created.Id, version = created.Version });
-
             }
             catch (Exception ex)
             {
-                // בזמן דיבוג נחזיר פירוט מלא כדי לעלות על תקלות מהר
                 return Content(HttpStatusCode.InternalServerError,
                     new { ok = false, error = ex.ToString() });
             }
         }
-
 
         // --------------------------------------------
         // GET /api/v1/workforms?managerId=1
@@ -153,7 +153,7 @@ namespace IsraelRailProject.app.v1.controllers
             var wf = WorkFormDAL.GetById(id);
             if (wf == null) return NotFound();
 
-            var assignedIds = WorkFormEmployeeDAL.GetAssignedIds(id);         // מי אמור לחתום
+            var assignedIds = WorkFormEmployeeDAL.GetAssignedIds(id);          // מי אמור לחתום
             var signedIds = SignatureDAL.GetSignedEmployeeIds(id, wf.Version); // מי חתם בפועל
             var total = assignedIds.Count > 0 ? (int?)assignedIds.Count : null;
             var pendingIds = assignedIds.Except(signedIds).ToList();
@@ -245,7 +245,6 @@ namespace IsraelRailProject.app.v1.controllers
                         ? dto.WorkDateTime
                         : dto.WorkDateTime.ToUniversalTime();
                 }
-
                 WorkFormDAL.UpdateBasic(newForm);
 
                 // החלפת עובדים אם נשלחו

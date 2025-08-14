@@ -1,0 +1,103 @@
+﻿@using IsraelRailProject.app.v1.models.dtos
+@model WorkFormDetailsDto
+
+@{
+    ViewBag.Title = "צפייה בטופס #" + Model.Id;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>טופס #@Model.Id</strong>
+        <div class="d-flex gap-2">
+            <a class="btn btn-sm btn-outline-secondary" href="@Url.Action("Index","History")">חזרה</a>
+            <button class="btn btn-sm btn-outline-secondary" onclick="window.print()">הדפס</button>
+        </div>
+    </div>
+
+    <div class="card-body">
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <div class="form-label">תאריך/שעה</div>
+                <div>@Model.WorkDateTime.ToString("dd/MM/yyyy HH:mm")</div>
+            </div>
+            <div class="col-md-3">
+                <div class="form-label">מנהל</div>
+                <div>@Model.ManagerName (@Model.ManagerId)</div>
+            </div>
+            <div class="col-md-3">
+                <div class="form-label">סוג עבודה</div>
+                <div>@Model.WorkType</div>
+            </div>
+            <div class="col-md-3">
+                <div class="form-label">אתר</div>
+                <div>@Model.Site</div>
+            </div>
+
+            <div class="mt-3">
+                <h5 class="mb-2">סיכונים</h5>
+
+                @if (Model?.Risks != null && Model.Risks.Any())
+                {
+                    <div>
+                        @foreach (var r in Model.Risks)
+                        {
+                            <span class="badge bg-warning text-dark me-1 mb-1">@r.Name</span>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-light border">לא סומנו סיכונים לטופס זה.</div>
+                }
+            </div>
+        </div>
+
+        <hr />
+
+        <h6 class="mb-3">עובדים ושיוך/חתימות</h6>
+        <table class="table table-sm table-hover">
+            <thead>
+                <tr>
+                    <th style="width:90px">מזהה עובד</th>
+                    <th>שם</th>
+                    <th style="width:180px">חתם בתאריך</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Employees != null && Model.Employees.Count > 0)
+                {
+                    foreach (var e in Model.Employees)
+                    {
+                        <tr>
+                            <td>@e.EmployeeId</td>
+                            <td>@e.FullName</td>
+                            <td>@(e.SignedAt.HasValue ? e.SignedAt.Value.ToString("dd/MM/yyyy HH:mm") : "טרם חתם")</td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr><td colspan="3" class="text-muted">אין עובדים משויכים לטופס זה.</td></tr>
+                }
+            </tbody>
+        </table>
+
+        <hr />
+
+        <h6 class="mb-2">סיכונים</h6>
+        @if (Model?.Risks != null && Model.Risks.Any())
+        {
+            <div>
+                @foreach (var r in Model.Risks)
+                {
+                    <span class="badge bg-warning text-dark me-1 mb-1">@r.Name</span>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-light border">לא סומנו סיכונים לטופס זה.</div>
+        }
+    </div>
+</div>

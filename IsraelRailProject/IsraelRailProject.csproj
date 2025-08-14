@@ -178,8 +178,11 @@
     <Content Include="Web.config" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="app\v1\controllers\AuthController.cs" />
+    <Compile Include="app\v1\controllers\EmployeeController.cs" />
     <Compile Include="app\v1\controllers\EmployeesController.cs" />
     <Compile Include="app\v1\controllers\HealthController.cs" />
+    <Compile Include="app\v1\controllers\HistoryController.cs" />
     <Compile Include="app\v1\controllers\RisksController.cs" />
     <Compile Include="app\v1\controllers\SignatureController.cs" />
     <Compile Include="app\v1\controllers\UiController.cs" />
@@ -189,9 +192,16 @@
     <Compile Include="app\v1\DAL\SignatureDAL.cs" />
     <Compile Include="app\v1\DAL\UserDAL.cs" />
     <Compile Include="app\v1\DAL\WorkFormDAL.cs" />
+    <Compile Include="app\v1\DAL\WorkFormDetailsDAL.cs" />
     <Compile Include="app\v1\DAL\WorkFormEmployeeDAL.cs" />
+    <Compile Include="app\v1\DAL\WorkFormHistoryDAL.cs" />
     <Compile Include="app\v1\DAL\WorkFormRiskItemDAL.cs" />
+    <Compile Include="app\v1\DAL\WorkFormSignDAL.cs" />
+    <Compile Include="app\v1\models\dtos\AuthDtos.cs" />
+    <Compile Include="app\v1\models\dtos\WorkFormDetailsDto.cs" />
     <Compile Include="app\v1\models\dtos\WorkFormDtos.cs" />
+    <Compile Include="app\v1\models\dtos\WorkFormForSignDto.cs" />
+    <Compile Include="app\v1\models\dtos\WorkFormHistoryDto.cs" />
     <Compile Include="app\v1\models\RiskItem.cs" />
     <Compile Include="app\v1\models\Signature.cs" />
     <Compile Include="app\v1\models\User.cs" />
@@ -214,9 +224,13 @@
     <Content Include="Views\Shared\_Layout.cshtml" />
     <Content Include="Views\_ViewStart.cshtml" />
     <Content Include="Views\WorkForm\Index.cshtml" />
-    <Content Include="Views\Employees\Index.cshtml" />
+    <Content Include="Views\Employee\Index.cshtml" />
     <Content Include="Views\History\Index.cshtml" />
     <Content Include="Views\Risks\Index.cshtml" />
+    <Content Include="Views\Auth\Login.cshtml" />
+    <Content Include="Views\Employee\Home.cshtml" />
+    <Content Include="Views\Auth\FirstSetup.cshtml" />
+    <Content Include="Views\History\Details.cshtml" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>

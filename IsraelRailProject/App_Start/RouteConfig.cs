@@ -23,6 +23,21 @@ namespace IsraelRailProject
                 defaults: new { controller = "Ui", action = "WorkForm" }
             );
 
+            // === ניהול סיכונים ===
+            // alias: /Risks/Index -> UiController.Risks
+            routes.MapRoute(
+                name: "RisksIndexAlias",
+                url: "Risks/Index",
+                defaults: new { controller = "Ui", action = "Risks" }
+            );
+
+            // קיצור נוח: /risks
+            routes.MapRoute(
+                name: "RisksShort",
+                url: "risks",
+                defaults: new { controller = "Ui", action = "Risks" }
+            );
+
             // ברירת מחדל: "/" וכל כתובת כללית
             routes.MapRoute(
                 name: "Default",

@@ -1,0 +1,1 @@
+﻿ALTER TABLE Users ADD FirstLogin bit NOT NULL CONSTRAINT DF_Users_FirstLogin DEFAULT(1);

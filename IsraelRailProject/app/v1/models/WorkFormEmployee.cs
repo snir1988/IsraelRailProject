@@ -10,5 +10,9 @@ namespace IsraelRailProject.app.v1.models
         public int Id { get; set; }          // מזהה רשומה
         public int WorkFormId { get; set; }  // מזהה הטופס
         public int EmployeeId { get; set; }  // מזהה העובד
+
+        public string Email { get; set; }
+
+
     }
 }

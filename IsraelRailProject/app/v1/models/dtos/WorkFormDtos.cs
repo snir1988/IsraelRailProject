@@ -10,9 +10,9 @@ namespace IsraelRailProject.app.v1.models.dtos
         public string Site { get; set; }
         public DateTime WorkDateTime { get; set; }
         public string WorkType { get; set; }
-
-        // אופציונלי: עובדים לשיוך לטופס בעת יצירה
         public List<int> EmployeeIds { get; set; }
+        public List<int> RiskItemIds { get; set; }
+
     }
 
     // DTO לעדכון טופס (יוצר גרסה חדשה)
@@ -21,8 +21,6 @@ namespace IsraelRailProject.app.v1.models.dtos
         public string Site { get; set; }
         public DateTime WorkDateTime { get; set; }
         public string WorkType { get; set; }
-
-        // אופציונלי: החלפת רשימת עובדים/סיכונים בגרסה החדשה
         public List<int> EmployeeIds { get; set; }
         public List<int> RiskItemIds { get; set; }
     }
@@ -39,6 +37,13 @@ namespace IsraelRailProject.app.v1.models.dtos
     {
         public int Id { get; set; }
         public string FullName { get; set; }
+
+        // בהתאם לסכמת הטבלה Users (NOT NULL)
+        public string Email { get; set; }
+        public string Pass { get; set; } // ביצירה חובה; בעריכה אופציונלי
+
+        // חדש: תפקיד (למשל "Manager" או "Employee")
+        public string Role { get; set; }
     }
 
     // פריטי סיכון לתצוגה/בחירה
@@ -47,5 +52,4 @@ namespace IsraelRailProject.app.v1.models.dtos
         public int Id { get; set; }
         public string Name { get; set; }
     }
-
 }

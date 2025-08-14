@@ -2,36 +2,50 @@
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Linq;
 using IsraelRailProject.app.v1.models;
 
 namespace IsraelRailProject.app.v1.DAL
 {
     /// <summary>
-    /// שכבת גישה לנתונים עבור טופסי עבודה (WorkForms)
-    /// יצירה, שליפות, פתיחה לחתימות, עדכון סטטוס, וגרסאות.
+    /// שכבת גישה לנתונים עבור טופסי עבודה (WorkForms):
+    /// יצירה, שליפות, פתיחה לחתימות, עדכון סטטוס, גרסאות,
+    /// ושיוכים (עובדים/סיכונים).
     /// </summary>
     public static class WorkFormDAL
     {
-        // יצירת טופס חדש (Draft), מחזיר את המזהה שנוצר
+        // ===== יצירה בסיסית (ללא שיוכים) =====
+        // מחזיר את מזהה הטופס שנוצר
         public static int Create(WorkForm wf)
         {
             using (var conn = Db.GetConnection())
             using (var cmd = new SqlCommand(@"
                 INSERT INTO WorkForms (ManagerId, Site, WorkDateTime, WorkType, Status, Version, OriginalFormId, CreatedAt)
                 OUTPUT INSERTED.Id
-                VALUES (@ManagerId, @Site, @WorkDateTime, @WorkType, N'Draft', 1, NULL, SYSUTCDATETIME())", conn))
+                VALUES (@ManagerId, @Site, @WorkDateTime, @WorkType, N'Draft', 1, NULL, SYSUTCDATETIME())
+            ", conn))
             {
                 cmd.Parameters.AddWithValue("@ManagerId", wf.ManagerId);
-                cmd.Parameters.AddWithValue("@Site", wf.Site);
+                cmd.Parameters.AddWithValue("@Site", (object)wf.Site ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@WorkDateTime", wf.WorkDateTime); // מומלץ להעביר UTC מהשכבה הקוראת
-                cmd.Parameters.AddWithValue("@WorkType", wf.WorkType);
+                cmd.Parameters.AddWithValue("@WorkType", (object)wf.WorkType ?? DBNull.Value);
 
                 conn.Open();
                 return (int)cmd.ExecuteScalar();
             }
         }
 
-        // שליפה לפי מזהה (לטופס בודד)
+        // ===== יצירה + שיוך עובדים/סיכונים (עוטף) =====
+        // מתודת עזר נוחה: יוצרת טופס ואז משייכת עובדים/סיכונים (בקריאות נפרדות)
+        public static int CreateAndAssign(WorkForm wf, IEnumerable<int> employeeIds, IEnumerable<int> riskItemIds)
+        {
+            var id = Create(wf);
+            if (employeeIds != null) SetEmployees(id, employeeIds);
+            if (riskItemIds != null) SetRiskItems(id, riskItemIds);
+            return id;
+        }
+
+        // ===== שליפה בודדת =====
         public static WorkForm GetById(int id)
         {
             WorkForm wf = null;
@@ -40,7 +54,8 @@ namespace IsraelRailProject.app.v1.DAL
             using (var cmd = new SqlCommand(@"
                 SELECT Id, ManagerId, Site, WorkDateTime, WorkType, Status, Version, OriginalFormId, CreatedAt
                 FROM WorkForms
-                WHERE Id = @Id", conn))
+                WHERE Id = @Id
+            ", conn))
             {
                 cmd.Parameters.AddWithValue("@Id", id);
                 conn.Open();
@@ -53,10 +68,10 @@ namespace IsraelRailProject.app.v1.DAL
                         {
                             Id = rd.GetInt32(0),
                             ManagerId = rd.GetInt32(1),
-                            Site = rd.GetString(2),
+                            Site = rd.IsDBNull(2) ? "" : rd.GetString(2),
                             WorkDateTime = rd.GetDateTime(3),
-                            WorkType = rd.GetString(4),
-                            Status = rd.GetString(5),
+                            WorkType = rd.IsDBNull(4) ? "" : rd.GetString(4),
+                            Status = rd.IsDBNull(5) ? "" : rd.GetString(5),
                             Version = rd.GetInt32(6),
                             OriginalFormId = rd.IsDBNull(7) ? (int?)null : rd.GetInt32(7),
                             CreatedAt = rd.GetDateTime(8)
@@ -69,12 +84,13 @@ namespace IsraelRailProject.app.v1.DAL
             {
                 // טעינת עובדים משויכים (לנוחות שכבות עליונות)
                 wf.Employees = WorkFormEmployeeDAL.GetByFormId(id);
+                // אם תרצה גם סיכונים כתווים/מזהים למודל WorkForm – אפשר להוסיף שדה במודל ולקרוא כאן DAL נוסף.
             }
 
             return wf;
         }
 
-        // שליפת כל הטפסים של מנהל מסוים (לרשימה במסך)
+        // ===== שליפה לפי מנהל =====
         public static List<WorkForm> GetByManager(int managerId)
         {
             var list = new List<WorkForm>();
@@ -84,7 +100,8 @@ namespace IsraelRailProject.app.v1.DAL
                 SELECT Id, ManagerId, Site, WorkDateTime, WorkType, Status, Version, OriginalFormId, CreatedAt
                 FROM WorkForms
                 WHERE ManagerId = @ManagerId
-                ORDER BY CreatedAt DESC", conn))
+                ORDER BY CreatedAt DESC
+            ", conn))
             {
                 cmd.Parameters.AddWithValue("@ManagerId", managerId);
                 conn.Open();
@@ -97,10 +114,10 @@ namespace IsraelRailProject.app.v1.DAL
                         {
                             Id = rd.GetInt32(0),
                             ManagerId = rd.GetInt32(1),
-                            Site = rd.GetString(2),
+                            Site = rd.IsDBNull(2) ? "" : rd.GetString(2),
                             WorkDateTime = rd.GetDateTime(3),
-                            WorkType = rd.GetString(4),
-                            Status = rd.GetString(5),
+                            WorkType = rd.IsDBNull(4) ? "" : rd.GetString(4),
+                            Status = rd.IsDBNull(5) ? "" : rd.GetString(5),
                             Version = rd.GetInt32(6),
                             OriginalFormId = rd.IsDBNull(7) ? (int?)null : rd.GetInt32(7),
                             CreatedAt = rd.GetDateTime(8)
@@ -112,7 +129,7 @@ namespace IsraelRailProject.app.v1.DAL
             return list;
         }
 
-        // פתיחה לחתימות (סטטוס Open)
+        // ===== פתיחה לחתימות =====
         public static int OpenForSign(int id)
         {
             using (var conn = Db.GetConnection())
@@ -125,7 +142,7 @@ namespace IsraelRailProject.app.v1.DAL
             }
         }
 
-        // עדכון סטטוס של טופס (Draft/Open/Closed/...)
+        // ===== עדכון סטטוס =====
         public static int SetStatus(int id, string status)
         {
             using (var conn = Db.GetConnection())
@@ -133,20 +150,20 @@ namespace IsraelRailProject.app.v1.DAL
                 "UPDATE WorkForms SET Status = @S WHERE Id = @Id", conn))
             {
                 cmd.Parameters.AddWithValue("@Id", id);
-                cmd.Parameters.AddWithValue("@S", status);
+                cmd.Parameters.AddWithValue("@S", (object)status ?? DBNull.Value);
                 conn.Open();
-                return cmd.ExecuteNonQuery(); // 1 אם עודכן
+                return cmd.ExecuteNonQuery();
             }
         }
 
-        // יצירת גרסה חדשה על בסיס טופס קיים: Version++ , Status='Draft'
-        // מעתיק גם שיוכי עובדים וסיכונים ב-SQL (בתוך אותו scope)
+        // ===== יצירת גרסה חדשה =====
+        // מעתיק גם שיוכי עובדים וסיכונים (אם טבלת הסיכונים קיימת)
         public static int CreateNewVersion(int sourceId)
         {
             var src = GetById(sourceId);
             if (src == null) throw new ArgumentException("הטופס לא נמצא");
 
-            var rootId = src.OriginalFormId.HasValue ? src.OriginalFormId.Value : src.Id;
+            var rootId = src.OriginalFormId ?? src.Id;
 
             using (var conn = Db.GetConnection())
             using (var cmd = new SqlCommand(@"
@@ -161,15 +178,18 @@ namespace IsraelRailProject.app.v1.DAL
                 FROM WorkFormEmployees WHERE WorkFormId=@Old;
 
                 -- העתקת סיכונים מהגרסה הישנה לגרסה החדשה (אם קיימת הטבלה)
-                INSERT INTO WorkFormRiskItems (WorkFormId, RiskItemId)
-                SELECT SCOPE_IDENTITY(), RiskItemId
-                FROM WorkFormRiskItems WHERE WorkFormId=@Old;
+                IF OBJECT_ID('dbo.WorkFormRiskItems','U') IS NOT NULL
+                BEGIN
+                    INSERT INTO WorkFormRiskItems (WorkFormId, RiskItemId)
+                    SELECT SCOPE_IDENTITY(), RiskItemId
+                    FROM WorkFormRiskItems WHERE WorkFormId=@Old;
+                END
             ", conn))
             {
                 cmd.Parameters.AddWithValue("@M", src.ManagerId);
-                cmd.Parameters.AddWithValue("@Site", src.Site);
+                cmd.Parameters.AddWithValue("@Site", (object)src.Site ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@DT", src.WorkDateTime);
-                cmd.Parameters.AddWithValue("@Type", src.WorkType);
+                cmd.Parameters.AddWithValue("@Type", (object)src.WorkType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@Ver", src.Version + 1);
                 cmd.Parameters.AddWithValue("@Root", rootId);
                 cmd.Parameters.AddWithValue("@Old", sourceId);
@@ -179,22 +199,136 @@ namespace IsraelRailProject.app.v1.DAL
             }
         }
 
-        // עדכון שדות בסיסיים (ללא סטטוס/גרסה)
+        // ===== עדכון שדות בסיסיים =====
         public static int UpdateBasic(WorkForm wf)
         {
             using (var conn = Db.GetConnection())
             using (var cmd = new SqlCommand(@"
                 UPDATE WorkForms
                 SET Site=@Site, WorkDateTime=@DT, WorkType=@Type
-                WHERE Id=@Id", conn))
+                WHERE Id=@Id
+            ", conn))
             {
                 cmd.Parameters.AddWithValue("@Id", wf.Id);
-                cmd.Parameters.AddWithValue("@Site", wf.Site);
+                cmd.Parameters.AddWithValue("@Site", (object)wf.Site ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@DT", wf.WorkDateTime);
-                cmd.Parameters.AddWithValue("@Type", wf.WorkType);
+                cmd.Parameters.AddWithValue("@Type", (object)wf.WorkType ?? DBNull.Value);
                 conn.Open();
                 return cmd.ExecuteNonQuery();
             }
         }
+
+        // ====================================================================
+        // =============== שיוכים: עובדים / סיכונים ==========================
+        // ====================================================================
+
+        /// <summary>
+        /// קובע את רשימת העובדים המשויכים לטופס (מוחק ומכניס מחדש).
+        /// </summary>
+        public static void SetEmployees(int formId, IEnumerable<int> employeeIds)
+        {
+            var ids = (employeeIds ?? Enumerable.Empty<int>()).Distinct().ToList();
+
+            using (var conn = Db.GetConnection())
+            {
+                conn.Open();
+                using (var tx = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        using (var del = new SqlCommand(@"DELETE FROM WorkFormEmployees WHERE WorkFormId=@F", conn, tx))
+                        {
+                            del.Parameters.AddWithValue("@F", formId);
+                            del.ExecuteNonQuery();
+                        }
+
+                        if (ids.Count > 0)
+                        {
+                            using (var ins = new SqlCommand(@"INSERT INTO WorkFormEmployees (WorkFormId, EmployeeId) VALUES (@F, @E)", conn, tx))
+                            {
+                                var pF = ins.Parameters.Add("@F", System.Data.SqlDbType.Int);
+                                var pE = ins.Parameters.Add("@E", System.Data.SqlDbType.Int);
+                                pF.Value = formId;
+
+                                foreach (var eid in ids)
+                                {
+                                    pE.Value = eid;
+                                    ins.ExecuteNonQuery();
+                                }
+                            }
+                        }
+
+                        tx.Commit();
+                    }
+                    catch
+                    {
+                        tx.Rollback();
+                        throw;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// קובע את רשימת הסיכונים המשויכים לטופס (מוחק ומכניס מחדש).
+        /// בטוח גם אם טבלת WorkFormRiskItems לא קיימת – לא ייזרק חריג.
+        /// </summary>
+        // קובץ: app/v1/DAL/WorkFormDAL.cs  (רק המקטע הזה)
+        public static void SetRiskItems(int formId, IEnumerable<int> riskItemIds)
+        {
+            var ids = (riskItemIds ?? Enumerable.Empty<int>()).Distinct().ToList();
+
+            using (var conn = Db.GetConnection())
+            {
+                conn.Open();
+                using (var tx = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        // בדיקה עדינה לקיום הטבלה
+                        using (var chk = new SqlCommand(@"SELECT OBJECT_ID('dbo.WorkFormRiskItems','U')", conn, tx))
+                        {
+                            var objId = chk.ExecuteScalar();
+                            bool hasTable = objId != null && objId != DBNull.Value;
+                            if (!hasTable)
+                            {
+                                tx.Commit(); // אין טבלת שיוך – יוצאים בשקט
+                                return;
+                            }
+                        }
+
+                        using (var del = new SqlCommand(@"DELETE FROM WorkFormRiskItems WHERE WorkFormId=@F", conn, tx))
+                        {
+                            del.Parameters.AddWithValue("@F", formId);
+                            del.ExecuteNonQuery();
+                        }
+
+                        if (ids.Count > 0)
+                        {
+                            using (var ins = new SqlCommand(@"INSERT INTO WorkFormRiskItems (WorkFormId, RiskItemId) VALUES (@F, @R)", conn, tx))
+                            {
+                                var pF = ins.Parameters.Add("@F", System.Data.SqlDbType.Int);
+                                var pR = ins.Parameters.Add("@R", System.Data.SqlDbType.Int);
+                                pF.Value = formId;
+
+                                foreach (var rid in ids)
+                                {
+                                    pR.Value = rid;
+                                    ins.ExecuteNonQuery();
+                                }
+                            }
+                        }
+
+                        tx.Commit();
+                    }
+                    catch
+                    {
+                        tx.Rollback();
+                        throw;
+                    }
+                }
+            }
+        }
     }
 }
+

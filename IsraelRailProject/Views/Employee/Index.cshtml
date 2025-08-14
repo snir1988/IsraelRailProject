@@ -1,20 +1,23 @@
 ﻿@using IsraelRailProject.app.v1.models.dtos
-@model IEnumerable<RiskItemDto>
+@model IEnumerable<EmployeeDto>
 
 @{
-    ViewBag.Title = "ניהול סיכונים";
+    ViewBag.Title = "ניהול עובדים";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" />
 
 <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <strong>ניהול סיכונים</strong>
-        @using (Html.BeginForm("RiskCreate", "Ui", FormMethod.Post, new { @class = "d-flex gap-2 align-items-center mb-0" }))
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <strong>ניהול עובדים</strong>
+
+        @using (Html.BeginForm("Create", "Employees", FormMethod.Post, new { @class = "d-flex gap-2 align-items-center mb-0" }))
         {
             @Html.AntiForgeryToken()
-            <input name="Name" class="form-control form-control-sm" placeholder="שם סיכון חדש" required style="width:260px" />
+            <input name="FullName" class="form-control form-control-sm" placeholder="שם עובד חדש" required style="width:200px" />
+            <input name="Email" class="form-control form-control-sm" placeholder="אימייל" type="email" required style="width:220px" />
+            <input name="Pass" class="form-control form-control-sm" placeholder="סיסמה" type="password" required style="width:180px" />
             <button class="btn btn-sm btn-primary" type="submit">הוסף</button>
         }
     </div>
@@ -25,38 +28,38 @@
         @if (TempData["error"] != null)
         {<div class="alert alert-danger">@TempData["error"]</div>}
 
-        <table id="RisksTbl" class="table table-borderless table-hover w-100">
+        <table class="table table-borderless table-hover" id="MainTbl" style="width:100%">
             <thead>
                 <tr>
                     <th style="width:90px">מזהה</th>
-                    <th>שם סיכון</th>
+                    <th>שם עובד</th>
+                    <th>אימייל</th>
                     <th style="width:120px">ניהול</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach (var r in Model ?? Enumerable.Empty<RiskItemDto>())
+                @foreach (var emp in Model ?? Enumerable.Empty<EmployeeDto>())
                 {
                     <tr>
-                        <td>@r.Id</td>
-                        <td>@r.Name</td>
+                        <td>@emp.Id</td>
+                        <td>@emp.FullName</td>
+                        <td>@emp.Email</td>
                         <td>
                             <div class="dropdown">
                                 <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">ניהול</button>
                                 <div class="dropdown-menu dropdown-menu-end p-0">
-                                    <button class="dropdown-item"
-                                            type="button"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#editModal"
-                                            data-id="@r.Id"
-                                            data-name="@r.Name">
+                                    <button class="dropdown-item" type="button"
+                                            data-bs-toggle="modal" data-bs-target="#editModal"
+                                            data-id="@emp.Id" data-name="@emp.FullName" data-email="@emp.Email">
                                         עריכה
                                     </button>
 
-                                    @using (Html.BeginForm("RiskDelete", "Ui", FormMethod.Post, new { @class = "m-0" }))
+                                    @using (Html.BeginForm("Delete", "Employees", FormMethod.Post, new { @class = "m-0" }))
                                     {
                                         @Html.AntiForgeryToken()
-                                        @Html.Hidden("id", r.Id)
-                                        <button class="dropdown-item text-danger" type="submit" onclick="return confirm('למחוק את הסיכון @r.Name ?');">
+                                        @Html.Hidden("id", emp.Id)
+                                        <button class="dropdown-item text-danger" type="submit"
+                                                onclick="return confirm('למחוק את העובד @emp.FullName ?');">
                                             מחיקה
                                         </button>
                                     }
@@ -70,21 +73,32 @@
     </div>
 </div>
 
-<!-- Modal: עריכת סיכון -->
+<!-- Modal עריכה -->
 <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLbl" aria-hidden="true">
     <div class="modal-dialog">
-        @using (Html.BeginForm("RiskEdit", "Ui", FormMethod.Post, new { @class = "modal-content" }))
+        @using (Html.BeginForm("Edit", "Employees", FormMethod.Post, new { @class = "modal-content" }))
         {
             @Html.AntiForgeryToken()
             <div class="modal-header">
-                <h5 class="modal-title" id="editModalLbl">עריכת סיכון</h5>
+                <h5 class="modal-title" id="editModalLbl">עריכת עובד</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="סגור"></button>
             </div>
             <div class="modal-body">
                 @Html.Hidden("Id", null, new { id = "editId" })
+
                 <div class="mb-3">
-                    <label for="editName" class="form-label">שם הסיכון</label>
-                    <input id="editName" name="Name" class="form-control" required />
+                    <label for="editFullName" class="form-label">שם מלא</label>
+                    <input id="editFullName" name="FullName" class="form-control" required />
+                </div>
+
+                <div class="mb-3">
+                    <label for="editEmail" class="form-label">אימייל</label>
+                    <input id="editEmail" name="Email" class="form-control" type="email" required />
+                </div>
+
+                <div class="mb-3">
+                    <label for="editPass" class="form-label">סיסמה (ריק = לא לשנות)</label>
+                    <input id="editPass" name="Pass" class="form-control" type="password" />
                 </div>
             </div>
             <div class="modal-footer">
@@ -100,22 +114,22 @@
     <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
     <script>
         $(function () {
-            $('#RisksTbl').DataTable({
+            $('#MainTbl').DataTable({
                 language: { url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/he.json' },
                 pageLength: 16,
                 lengthMenu: [[16, 32, 64, -1], [16, 32, 64, 'הכל']]
             });
         });
 
-        // מילוי מודאל עריכה
+        // מילוי שדות במודאל עריכה
         var editModal = document.getElementById('editModal');
         if (editModal) {
             editModal.addEventListener('show.bs.modal', function (event) {
                 var btn = event.relatedTarget;
-                var id = btn.getAttribute('data-id');
-                var name = btn.getAttribute('data-name');
-                document.getElementById('editId').value = id;
-                document.getElementById('editName').value = name || '';
+                document.getElementById('editId').value = btn.getAttribute('data-id');
+                document.getElementById('editFullName').value = btn.getAttribute('data-name') || '';
+                document.getElementById('editEmail').value = btn.getAttribute('data-email') || '';
+                document.getElementById('editPass').value = ''; // לא מציגים סיסמה קיימת
             });
         }
     </script>

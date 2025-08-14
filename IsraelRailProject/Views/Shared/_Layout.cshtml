@@ -1,5 +1,8 @@
-﻿@{
-    Layout = null;
+﻿@using IsraelRailProject.app.v1.models.dtos
+@{
+    Layout = null; // זהו קובץ ה־Layout עצמו
+    var cu = Session["CurrentUser"] as CurrentUserDto;
+    bool isManager = cu != null && string.Equals(cu.Role, "Manager", System.StringComparison.OrdinalIgnoreCase);
 }
 <!doctype html>
 <html lang="he" dir="rtl">
@@ -11,7 +14,7 @@
     <!-- Bootstrap (CDN) כדי למנוע 404 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
 
-    <!-- ה־CSS המקומי שלך (אם קיים) -->
+    <!-- ה־CSS המקומי שלך -->
     <link rel="stylesheet" href='@Url.Content("~/Content/template/css/style.css")' />
 
     <style>
@@ -102,7 +105,6 @@
             border-bottom-right-radius: 16px;
         }
 
-        /* מובייל: ברירת מחדל סגור, נפתח ע"י toggle */
         @@media (max-width: 992px) {
             .sidebar {
                 position: fixed;
@@ -127,17 +129,40 @@
         <aside class="sidebar">
             <div class="brand">רכבת ישראל</div>
             <nav>
-                <a href='@Url.Action("WorkForm","Ui")'
-                   class='@(Request.RawUrl.ToLower().Contains("/workform") ? "active" : "")'>טופס עבודה</a>
+                @* טופס עבודה — למנהלים בלבד *@
+                @if (isManager)
+                {
+                    <a href='@Url.Action("WorkForm","Ui")'
+                       class='@(Request.RawUrl.ToLower().Contains("/workform") ? "active" : "")'>טופס עבודה</a>
+                }
 
-                <a href='@Url.Action("Employees","Ui")'
-                   class='@(Request.RawUrl.ToLower().Contains("/employees") ? "active" : "")'>עובדים</a>
+                @* עובדים — למנהלים: ניגש ישירות ל-EmployeesController *@
+                @if (isManager)
+                {
+                    <a href='@Url.Action("Index","Employees")'
+                       class='@(Request.RawUrl.ToLower().Contains("/employees") ? "active" : "")'>עובדים</a>
+                }
 
-                <a href='@Url.Action("Risks","Ui")'
-                   class='@(Request.RawUrl.ToLower().Contains("/risks") ? "active" : "")'>ניהול סיכונים</a>
+                @* ניהול סיכונים — כרגע דרך Ui.Risks (אין RisksController נפרד) *@
+                @if (isManager)
+                {
+                    <a href='@Url.Action("Risks","Ui")'
+                       class='@(Request.RawUrl.ToLower().Contains("/risks") ? "active" : "")'>ניהול סיכונים</a>
+                }
 
-                <a href='@Url.Action("History","Ui")'
-                   class='@(Request.RawUrl.ToLower().Contains("/history") ? "active" : "")'>היסטוריית טפסים</a>
+                @* היסטוריה — נשאר דרך Ui.History שמפנה ל-HistoryController *@
+                @if (isManager)
+                {
+                    <a href='@Url.Action("History","Ui")'
+                       class='@(Request.RawUrl.ToLower().Contains("/history") ? "active" : "")'>היסטוריית טפסים</a>
+                }
+
+                @* איזור עובד — אם תרצה קיצור דרך לעובדים *@
+                @if (!isManager)
+                {
+                    <a href='@Url.Action("Home","Employee")'
+                       class='@(Request.RawUrl.ToLower().Contains("/employee/home") ? "active" : "")'>הטפסים שלי</a>
+                }
             </nav>
         </aside>
 
@@ -148,7 +173,10 @@
                 <button id="sidebarToggle" class="btn btn-outline-secondary btn-sm me-2" type="button" aria-label="פתח/סגור תפריט">☰</button>
                 <div class="title">@ViewBag.Title</div>
                 <div class="actions">
-                    <a href='@Url.Action("WorkForm","Ui")' class="btn btn-sm btn-primary">טופס חדש</a>
+                    @if (isManager)
+                    {
+                        <a href='@Url.Action("WorkForm","Ui")' class="btn btn-sm btn-primary">טופס חדש</a>
+                    }
                 </div>
             </div>
 
@@ -165,7 +193,7 @@
     <!-- Bootstrap Bundle (CDN) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- הסקריפט המקומי שלך אם קיים -->
+    <!-- הסקריפט המקומי שלך -->
     <script src='@Url.Content("~/Content/template/js/main.js")'></script>
 
     <!-- Toggle Sidebar (מובייל ודסקטופ) -->

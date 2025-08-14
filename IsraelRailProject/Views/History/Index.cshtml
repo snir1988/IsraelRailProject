@@ -1,2 +1,58 @@
-﻿@{ ViewBag.Title = "עובדים"; }
-<div class="container py-4"><h1>עובדים</h1><p>דף Placeholder</p></div>
+﻿@using IsraelRailProject.app.v1.models.dtos
+@model IEnumerable<WorkFormHistoryDto>
+@{
+    ViewBag.Title = "היסטוריית טפסים";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" />
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>היסטוריית טפסים</strong>
+        <button class="btn btn-outline-secondary btn-sm" onclick="location.reload()">רענון</button>
+    </div>
+    <div class="card-body">
+        <table id="HistTbl" class="table table-borderless table-hover w-100">
+            <thead>
+                <tr>
+                    <th style="width:90px">מזהה</th>
+                    <th style="width:180px">תאריך/שעה</th>
+                    <th>אתר</th>
+                    <th>סוג עבודה</th>
+                    <th>מנהל</th>
+                    <th style="width:140px">חתימות</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in (Model ?? Enumerable.Empty<WorkFormHistoryDto>()))
+                {
+                    <tr>
+                        <td>
+                            <a href='@Url.Action("Details","History", new { id = row.Id })'>@row.Id</a>
+                        </td>
+                        <td>@row.WorkDateTime.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>@row.Site</td>
+                        <td>@row.WorkType</td>
+                        <td>@row.ManagerName</td>
+                        <td>@row.SignedCount / @row.EmployeesCount</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section scripts {
+    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+        $(function () {
+            $('#HistTbl').DataTable({
+                language: { url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/he.json' },
+                order: [[1, 'desc']],
+                pageLength: 16,
+                lengthMenu: [[16, 32, 64, -1], [16, 32, 64, 'הכל']]
+            });
+        });
+    </script>
+}

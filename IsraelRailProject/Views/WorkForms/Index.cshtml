@@ -1,14 +1,8 @@
-﻿@using IsraelRailProject.app.v1.DAL
-@using IsraelRailProject.app.v1.models.dtos
-
-@{
+﻿@{
     ViewBag.Title = "טופס עבודה חדש";
-
-    // נתונים מהשרת (MVC, ללא AJAX)
-    var employees = UserDAL.GetEmployees();     // List<EmployeeDto>
-    var risks = RiskItemDAL.GetAll();       // List<RiskItemDto>  ← אם אצלך השם GetRiskItems() החלף כאן
 }
 
+<!-- סגנון מקומי לדף -->
 <style>
     .form-section {
         max-width: 1100px;
@@ -27,21 +21,22 @@
     .card {
         overflow: visible;
     }
+    /* שלא ייחתך */
 
-    /* רשימות בחירה עם צ'קבוקסים (עובדים/סיכונים) */
-    .pick-list {
+    /* רשימת עובדים (צ'קבוקסים) */
+    .emp-list {
         max-height: 280px;
         overflow: auto;
         border: 1px solid #e5e7eb;
         border-radius: 12px;
     }
 
-        .pick-list .list-group-item {
+        .emp-list .list-group-item {
             border: 0;
             border-bottom: 1px solid #f1f5f9;
         }
 
-            .pick-list .list-group-item:last-child {
+            .emp-list .list-group-item:last-child {
                 border-bottom: 0;
             }
 </style>
@@ -51,10 +46,10 @@
     <div class="card-body">
         <form id="workForm" class="row g-4">
 
-            <!-- מזהה מנהל (מוזן מה-Session ב-UiController.WorkForm) -->
+            <!-- מזהה מנהל (זמני) -->
             <div class="col-md-3">
                 <label class="form-label">מזהה מנהל (ManagerId)</label>
-                <input type="number" class="form-control" id="ManagerId" value="@((ViewBag.ManagerId ?? 1))" />
+                <input type="number" class="form-control" id="ManagerId" value="1" />
                 <div class="hint">זמני – בהמשך ניקח מזהות המשתמש המחובר</div>
             </div>
 
@@ -86,42 +81,16 @@
                 </select>
             </div>
 
-            <!-- סיכונים: בחירה מרובה כמו עובדים -->
-            <div class="col-12">
-                <label class="form-label d-block">בחירת סיכונים (RiskItemIds)</label>
-
-                <div class="card">
-                    <div class="card-body">
-                        <div class="row g-2 align-items-center">
-                            <div class="col-sm-6 col-md-4">
-                                <div class="input-group">
-                                    <span class="input-group-text">חיפוש</span>
-                                    <input type="text" id="risksSearch" class="form-control" placeholder="הקלד שם סיכון...">
-                                </div>
-                            </div>
-
-                            <div class="col-auto">
-                                <button class="btn btn-sm btn-outline-secondary" type="button" id="risksSelectAll">בחר הכל</button>
-                                <button class="btn btn-sm btn-outline-secondary" type="button" id="risksClearAll">נקה</button>
-                            </div>
-
-                            <div class="col-12">
-                                <div id="risksList" class="list-group pick-list"><!-- ימולא דינמית --></div>
-                            </div>
-
-                            <div class="col-12 d-flex justify-content-between align-items-center mt-2">
-                                <div id="risksSummary" class="text-muted">לא נבחרו סיכונים</div>
-                                <button type="button" class="btn btn-primary btn-sm" id="btnRisksApply">אישור</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <input type="hidden" id="RisksSelected" value="" />
-                <div class="hint">אפשר לבחור כמה סיכונים שתרצה.</div>
+            <!-- סיכונים (לטעינה/תצוגה) -->
+            <div class="col-md-6">
+                <label class="form-label">סיכונים</label>
+                <select class="form-select" id="Risks">
+                    <option value="">בחר סיכון</option>
+                </select>
+                <div class="hint">ב־Create לא נשלח ל־API (אצלך זה ב־Update), כרגע לטעינה/תצוגה.</div>
             </div>
 
-            <!-- עובדים: בחירה מרובה -->
+            <!-- עובדים: מקטע יחיד עם חיפוש + צ'קבוקסים + אישור -->
             <div class="col-12">
                 <label class="form-label d-block">בחירת עובדים (EmployeeIds)</label>
 
@@ -141,7 +110,7 @@
                             </div>
 
                             <div class="col-12">
-                                <div id="employeesList" class="list-group pick-list"><!-- ימולא דינמית --></div>
+                                <div id="employeesList" class="list-group emp-list"><!-- ימולא דינמית --></div>
                             </div>
 
                             <div class="col-12 d-flex justify-content-between align-items-center mt-2">
@@ -170,19 +139,23 @@
     </div>
 </div>
 
+
 @section scripts {
-    <!-- מזריקים ל-JS את הרשימות מהשרת -->
     <script>
-        window._employees = @Html.Raw(System.Web.Helpers.Json.Encode(employees));
-        window._risks     = @Html.Raw(System.Web.Helpers.Json.Encode(risks));
-    </script>
+        // ==== Helperים קצרים ====
+        function pick(obj, ...names) {
+            for (var i = 0; i < names.length; i++) {
+                if (obj && obj[names[i]] !== undefined && obj[names[i]] !== null) return obj[names[i]];
+            }
+            return undefined;
+        }
+        function buildIsoDateTime(dateStr, timeStr) {
+            if (!dateStr) return null;
+            const t = (timeStr && timeStr.length >= 5) ? timeStr : "00:00";
+            return new Date(dateStr + "T" + t).toISOString();
+        }
 
-    <script>
-        // ===== Helpers =====
-        function pick(obj, ...names) { for (var i = 0; i < names.length; i++) { if (obj && obj[names[i]] !== undefined && obj[names[i]] !== null) return obj[names[i]]; } return undefined; }
-        function buildIsoDateTime(dateStr, timeStr) { if (!dateStr) return null; const t = (timeStr && timeStr.length >= 5) ? timeStr : "00:00"; return new Date(dateStr + "T" + t).toISOString(); }
-
-        // ===== Global form state =====
+        // ==== מצב גלובלי קטן ====
         let lastWorkFormId = null;
         function setLastId(id) {
             lastWorkFormId = id || null;
@@ -192,12 +165,19 @@
             document.getElementById('btnClose').disabled = !lastWorkFormId;
         }
 
-        // ===== Employees select =====
-        window._employees = Array.isArray(window._employees) ? window._employees : [];
-        function getSelectedEmployeeIds() { const v = document.getElementById('EmployeesSelected')?.value?.trim() || ''; return v ? v.split(',').filter(Boolean) : []; }
-        function setSelectedEmployeeIds(ids) { const el = document.getElementById('EmployeesSelected'); if (el) el.value = (ids || []).join(','); }
+        // ==== Employees UI state ====
+        window._employees = [];
+        function getSelectedEmployeeIds() {
+            const val = document.getElementById('EmployeesSelected')?.value?.trim() || '';
+            return val ? val.split(',').filter(Boolean) : [];
+        }
+        function setSelectedEmployeeIds(ids) {
+            const el = document.getElementById('EmployeesSelected');
+            if (el) el.value = (ids || []).join(',');
+        }
         function updateEmployeesSummary() {
-            const ids = getSelectedEmployeeIds(), box = document.getElementById('employeesSummary');
+            const ids = getSelectedEmployeeIds();
+            const box = document.getElementById('employeesSummary');
             if (!box) return;
             if (!ids.length) { box.innerHTML = 'לא נבחרו עובדים'; box.classList.add('text-muted'); return; }
             const names = (window._employees || [])
@@ -207,54 +187,69 @@
             box.innerHTML = names.map(n => `<span class="badge bg-secondary me-1 mb-1">${n}</span>`).join(' ');
         }
         function renderEmployeesList(filter) {
-            const cont = document.getElementById('employeesList'); if (!cont) return;
-            const term = (filter || '').trim().toLowerCase(), sel = new Set(getSelectedEmployeeIds()); cont.innerHTML = '';
+            const cont = document.getElementById('employeesList');
+            if (!cont) return;
+            const term = (filter || '').trim().toLowerCase();
+            const selected = new Set(getSelectedEmployeeIds());
+            cont.innerHTML = '';
             (window._employees || []).forEach(emp => {
                 const id = String(pick(emp, 'Id', 'id')); if (!id) return;
-                const name = (pick(emp, 'FullName', 'fullName') || '').toLowerCase(); if (term && !name.includes(term)) return;
-                const checked = sel.has(id) ? 'checked' : '';
+                const fullName = (pick(emp, 'FullName', 'fullName') || '').toLowerCase();
+                if (term && !fullName.includes(term)) return;
+                const checked = selected.has(id) ? 'checked' : '';
                 cont.insertAdjacentHTML('beforeend',
                     `<label class="list-group-item d-flex align-items-center gap-2">
-                            <input class="form-check-input me-2 emp-check" type="checkbox" value="${id}" ${checked}>
-                            <span>${pick(emp, 'FullName', 'fullName') || '(ללא שם)'}</span>
-                        </label>`);
+                   <input class="form-check-input me-2 emp-check" type="checkbox" value="${id}" ${checked}>
+                   <span>${pick(emp, 'FullName', 'fullName') || '(ללא שם)'}</span>
+                 </label>`);
             });
         }
 
-        // ===== Risks select (בחירה מרובה) =====
-        window._risks = Array.isArray(window._risks) ? window._risks : [];
-        function getSelectedRiskIds() { const v = document.getElementById('RisksSelected')?.value?.trim() || ''; return v ? v.split(',').filter(Boolean) : []; }
-        function setSelectedRiskIds(ids) { const el = document.getElementById('RisksSelected'); if (el) el.value = (ids || []).join(','); }
-        function updateRisksSummary() {
-            const ids = getSelectedRiskIds(), box = document.getElementById('risksSummary');
-            if (!box) return;
-            if (!ids.length) { box.innerHTML = 'לא נבחרו סיכונים'; box.classList.add('text-muted'); return; }
-            const names = (window._risks || [])
-                .filter(r => ids.includes(String(pick(r, 'Id', 'id'))) || ids.includes(pick(r, 'Id', 'id')))
-                .map(r => pick(r, 'Name', 'name') || '(ללא שם)');
-            box.classList.remove('text-muted');
-            box.innerHTML = names.map(n => `<span class="badge bg-secondary me-1 mb-1">${n}</span>`).join(' ');
+        // ==== טעינת נתונים ====
+        async function loadEmployees() {
+            try {
+                const res = await fetch('/api/v1/employees');
+                if (!res.ok) throw new Error('Employees GET failed: ' + res.status);
+                const list = await res.json();
+                window._employees = Array.isArray(list) ? list : [];
+                renderEmployeesList('');
+            } catch (e) {
+                console.error(e);
+                window._employees = [];
+                renderEmployeesList('');
+            }
         }
-        function renderRisksList(filter) {
-            const cont = document.getElementById('risksList'); if (!cont) return;
-            const term = (filter || '').trim().toLowerCase(), sel = new Set(getSelectedRiskIds()); cont.innerHTML = '';
-            (window._risks || []).forEach(r => {
-                const id = String(pick(r, 'Id', 'id')); if (!id) return;
-                const name = (pick(r, 'Name', 'name') || '').toLowerCase(); if (term && !name.includes(term)) return;
-                const checked = sel.has(id) ? 'checked' : '';
-                cont.insertAdjacentHTML('beforeend',
-                    `<label class="list-group-item d-flex align-items-center gap-2">
-                            <input class="form-check-input me-2 risk-check" type="checkbox" value="${id}" ${checked}>
-                            <span>${pick(r, 'Name', 'name') || '(ללא שם)'}</span>
-                        </label>`);
-            });
+        async function loadRisks() {
+            try {
+                const res = await fetch('/api/v1/risks');
+                if (!res.ok) throw new Error('Risks GET failed: ' + res.status);
+                const list = await res.json();
+                const sel = document.getElementById('Risks');
+                if (!sel) return;
+                sel.innerHTML = '<option value="">בחר סיכון</option>';
+                (Array.isArray(list) ? list : []).forEach(r => {
+                    const id = pick(r, 'Id', 'id'); const name = pick(r, 'Name', 'name') || '(ללא שם)';
+                    if (id === undefined || id === null) return;
+                    const opt = document.createElement('option'); opt.value = id; opt.textContent = name;
+                    sel.appendChild(opt);
+                });
+            } catch (e) {
+                console.error(e);
+                const sel = document.getElementById('Risks');
+                if (sel) sel.innerHTML = '<option value="">— שגיאה בטעינה —</option>';
+            }
         }
 
-        // ===== API bits =====
+        // ==== פעולות API על הטופס שנוצר ====
         async function openForSign(id, silent = false) {
             if (!id) return;
             const res = await fetch(`/api/v1/workforms/${id}/send`, { method: 'POST' });
-            if (!res.ok) { if (!silent) alert('שגיאה בפתיחה לחתימות (' + res.status + ')'); return false; }
+            const t = await res.text();
+            if (!res.ok) {
+                console.warn('openForSign failed', res.status, t);
+                if (!silent) alert('שגיאה בפתיחה לחתימות (' + res.status + ')');
+                return false;
+            }
             if (!silent) alert('הטופס נפתח לחתימות');
             return true;
         }
@@ -267,11 +262,16 @@
         async function closeForm(id) {
             if (!id) return;
             const res = await fetch(`/api/v1/workforms/${id}/close`, { method: 'POST' });
-            if (!res.ok) { alert('לא ניתן לסגור (אולי יש עובדים שלא חתמו?)'); return; }
+            const t = await res.text();
+            if (!res.ok) {
+                console.warn('close failed', res.status, t);
+                alert('לא ניתן לסגור (אולי יש עובדים שלא חתמו?)');
+                return;
+            }
             alert('הטופס נסגר');
         }
 
-        // ===== Submit (כולל RiskItemIds) =====
+        // ==== שליחה (Create) ====
         async function submitWorkForm() {
             const managerId = parseInt(document.getElementById('ManagerId').value || '0', 10);
             const site = (document.getElementById('Site').value || '').trim();
@@ -279,7 +279,6 @@
             const timeStr = document.getElementById('WorkTime').value || '';
             const workType = (document.getElementById('WorkType').value || '').trim();
             const employeeIds = getSelectedEmployeeIds().map(x => parseInt(x, 10)).filter(n => !Number.isNaN(n));
-            const riskIds = getSelectedRiskIds().map(x => parseInt(x, 10)).filter(n => !Number.isNaN(n));
             const workDateTimeIso = buildIsoDateTime(dateStr, timeStr);
 
             if (!managerId || !site || !workDateTimeIso || !workType) {
@@ -287,14 +286,7 @@
                 return;
             }
 
-            const dto = {
-                ManagerId: managerId,
-                Site: site,
-                WorkDateTime: workDateTimeIso,
-                WorkType: workType,
-                EmployeeIds: employeeIds,
-                RiskItemIds: riskIds
-            };
+            const dto = { ManagerId: managerId, Site: site, WorkDateTime: workDateTimeIso, WorkType: workType, EmployeeIds: employeeIds };
 
             try {
                 const res = await fetch('/api/v1/workforms', {
@@ -302,35 +294,40 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(dto)
                 });
+
                 const text = await res.text();
-                if (!res.ok) { alert('שגיאה ביצירה (' + res.status + ') – ראה קונסול.'); console.error(text); return; }
+                if (!res.ok) {
+                    console.error('Create failed', res.status, text);
+                    alert('שגיאה ביצירה (' + res.status + ') – ראה פירוט בקונסול.');
+                    return;
+                }
 
                 const data = JSON.parse(text || '{}');
                 const id = data.id ?? data.Id ?? data.workFormId ?? data.WorkFormId;
                 setLastId(id);
                 alert('נוצר בהצלחה! מספר טופס: ' + (id ?? '[לא הוחזר מזהה]'));
-                if (id) await openForSign(id, true);
+
+                // פותח אוטומטית לחתימות
+                if (id) await openForSign(id, /*silent=*/true);
             } catch (err) {
                 console.error(err);
-                alert('שגיאה בשליחה.');
+                alert('שגיאה בשליחה. בדוק קונסול/Network.');
             }
         }
 
-        // ===== Events =====
+        // ==== אירועים ====
         document.getElementById('btnSubmit')?.addEventListener('click', submitWorkForm);
-        document.getElementById('btnReset')?.addEventListener('click', () => {
-            setSelectedEmployeeIds([]); setSelectedRiskIds([]);
-            updateEmployeesSummary(); updateRisksSummary(); setLastId(null);
-        });
+        document.getElementById('btnReset')?.addEventListener('click', () => { setSelectedEmployeeIds([]); updateEmployeesSummary(); setLastId(null); });
         document.getElementById('btnOpenForSign')?.addEventListener('click', () => openForSign(lastWorkFormId));
         document.getElementById('btnStatus')?.addEventListener('click', () => checkStatus(lastWorkFormId));
         document.getElementById('btnClose')?.addEventListener('click', () => closeForm(lastWorkFormId));
 
-        // Employees controls
-        document.getElementById('btnEmployeesApply')?.addEventListener('click', () => {
+        // Employees list controls
+        document.getElementById('btnEmployeesApply')?.addEventListener('click', function () {
             const checks = document.querySelectorAll('#employeesList .emp-check:checked');
             const ids = Array.from(checks).map(c => c.value);
-            setSelectedEmployeeIds(ids); updateEmployeesSummary();
+            setSelectedEmployeeIds(ids);
+            updateEmployeesSummary();
         });
         document.getElementById('employeesSearch')?.addEventListener('input', e => renderEmployeesList(e.target.value));
         document.getElementById('employeesSelectAll')?.addEventListener('click', () => {
@@ -340,25 +337,11 @@
             document.querySelectorAll('#employeesList .emp-check').forEach(c => c.checked = false);
         });
 
-        // Risks controls
-        document.getElementById('btnRisksApply')?.addEventListener('click', () => {
-            const checks = document.querySelectorAll('#risksList .risk-check:checked');
-            const ids = Array.from(checks).map(c => c.value);
-            setSelectedRiskIds(ids); updateRisksSummary();
-        });
-        document.getElementById('risksSearch')?.addEventListener('input', e => renderRisksList(e.target.value));
-        document.getElementById('risksSelectAll')?.addEventListener('click', () => {
-            document.querySelectorAll('#risksList .risk-check').forEach(c => c.checked = true);
-        });
-        document.getElementById('risksClearAll')?.addEventListener('click', () => {
-            document.querySelectorAll('#risksList .risk-check').forEach(c => c.checked = false);
-        });
-
         // Init
-        renderEmployeesList('');
-        renderRisksList('');
+        loadEmployees();
+        loadRisks();
         updateEmployeesSummary();
-        updateRisksSummary();
         setLastId(null);
     </script>
 }
+

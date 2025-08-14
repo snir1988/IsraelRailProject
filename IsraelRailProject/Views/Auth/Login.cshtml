@@ -1,0 +1,41 @@
+﻿@{
+    ViewBag.Title = "התחברות";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header"><strong>התחברות</strong></div>
+            <div class="card-body">
+                @if (TempData["success"] != null)
+                {<div class="alert alert-success">@TempData["success"]</div>}
+
+                @if (TempData["error"] != null)
+                {<div class="alert alert-danger">@TempData["error"]</div>}
+
+                @using (Html.BeginForm("Login", "Auth", FormMethod.Post))
+                {
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3">
+                        <label class="form-label">מספר עובד</label>
+                        <input name="EmployeeId" type="number" class="form-control" required autofocus />
+                    </div>
+
+                    <div class="mb-1">
+                        <label class="form-label">סיסמה</label>
+                        <input name="Pass" type="password" class="form-control" />
+                    </div>
+                    <div class="text-muted" style="font-size:.9rem">
+                        כניסה ראשונה? הזן רק <strong>מספר עובד</strong> והשאר את שדה הסיסמה ריק. תועבר למסך השלמת פרטים.
+                    </div>
+
+                    <div class="mt-3">
+                        <button class="btn btn-primary" type="submit">כניסה</button>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
